@@ -39,8 +39,12 @@ const byte xVal =0;
 const byte xMin =1;
 const byte xMax = 2;
 const byte xAvg = 3;
-float static waveData[4]{4) {0.00, 3.4028235E+38, -3.4028235E+38, 0.00};          //Phase values in millis {current, min, max, avg}
-float static periodData[4] {0.00, 3.4028235E+38, -3.4028235E+38, 0.00};         //Period values in millis {current, min, max, avg}
+
+float static waveData[4][4]{{0.00, 3.4028235E+38, -3.4028235E+38, 0.00},       
+                            {0.00, 3.4028235E+38, -3.4028235E+38, 0.00},
+                            {0.00, 3.4028235E+38, -3.4028235E+38, 0.00},
+                            {0.00, 3.4028235E+38, -3.4028235E+38, 0.00}};
+                                                                                
 float static freqAvg = 0.00;                                                    //Average freq Hz
 float static dutyAvg = 0;                                                       //Average positive duty cycle %
 unsigned long static phaseUpdateCount = 0;                                      //Running total of phase updates for calculating average
@@ -130,25 +134,25 @@ void waveCalc(){
 
     //Phase time and status display mode updates 
   if( phaseUpdateFlag == true ){
-    waveData[0] = wavePhaseMicros;       //convert unsigned long phase micros to float
+    waveData[xPhase][xVal] = wavePhaseMicros;       //convert unsigned long phase micros to float
     lastPhaseUpdate = millis();
-    waveData[0] = waveData[0]/1000;     //convert micros to millis         
+    waveData[xPhase][xVal] = waveData[xPhase][xVal]/1000;     //convert micros to millis         
 
-    if (waveData[0] > 0 ){
+    if (waveData[xPhase][xVal] > 0 ){
       //Update phase min
-      if( waveData[0] < waveData[1] ){
-        waveData[1] = waveData[0];
+      if( waveData[xPhase][xVal] < waveData[xPhase][xMin] ){
+        waveData[xPhase][xMin] = waveData[xPhase][xVal];
       }
       
         //Update phase max
-      if( waveData[0] > waveData[2] ){
-        waveData[2] = waveData[0];
+      if( waveData[xPhase][xVal] > waveData[xPhase][xMax] ){
+        waveData[xPhase][xMax] = waveData[xPhase][xVal];
       } 
   
         //Update phase average
       phaseUpdateCount ++;
-      phaseAvgSum += waveData[0];
-      waveData[3] = phaseAvgSum / phaseUpdateCount;
+      phaseAvgSum += waveData[xPhase][xVal];
+      waveData[xPhase][xAvg] = phaseAvgSum / phaseUpdateCount;
       
       phaseUpdateFlag = false;
       waveStatus = 2;           
@@ -167,30 +171,30 @@ void waveCalc(){
 
     //Period time, freq, and duty updates
   if( periodUpdateFlag == true ){
-      periodData[0] = wavePeriodMicros;     //convert unsigned long period micros to float
-      periodData[0] = periodData[0]/1000;   //convert micros to millis
+      waveData[xPeriod][xVal] = wavePeriodMicros;     //convert unsigned long period micros to float
+      waveData[xPeriod][xVal] = waveData[xPeriod][xVal]/1000;   //convert micros to millis
   
-      if ( periodData[0] > 0 ){
+      if ( waveData[xPeriod][xVal] > 0 ){
         //Update period min
-      if( periodData[0] < periodData[1] ){
-        periodData[1] = periodData[0];
+      if( waveData[xPeriod][xVal] < waveData[xPeriod][xMin] ){
+        waveData[xPeriod][xMin] = waveData[xPeriod][xVal];
       }
     
         //Update period max
-      if( periodData[0] > periodData[2] ){
-        periodData[2] = periodData[0];
+      if( waveData[xPeriod][xVal] > waveData[xPeriod][xMax] ){
+        waveData[xPeriod][xMax] = waveData[xPeriod][xVal];
       }
     
         //Update period average
       periodUpdateCount ++;
-      periodAvgSum += periodData[0];
-      periodData[3] = periodAvgSum / periodUpdateCount;
+      periodAvgSum += waveData[xPeriod][xVal];
+      waveData[xPeriod][xAvg] = periodAvgSum / periodUpdateCount;
       
         //Update average freq
-      freqAvg = 1 / (periodData[0] / 1000);                   //Convert copied average period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds). 
+      freqAvg = 1 / (waveData[xPeriod][xVal] / 1000);                   //Convert copied average period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds). 
   
         //Update average Duty
-      dutyAvg = (waveData[0] / periodData[0]) * 100 ;            //positive Duty% = positive phase / period
+      dutyAvg = (waveData[xPhase][xVal] / waveData[xPeriod][xVal]) * 100 ;            //positive Duty% = positive phase / period
    
       periodUpdateFlag = false;
     }    
@@ -204,18 +208,18 @@ void waveReset(){
   lcd.clear();
   
     //Reset phase data
-  waveData[0] = 0.00;
-  waveData[1] = 3.4028235E+38;
-  waveData[2] = -3.4028235E+38;
-  waveData[3] = 0.00;
+  waveData[xPhase][xVal] = 0.00;
+  waveData[xPhase][xMin] = 3.4028235E+38;
+  waveData[xPhase][xMax] = -3.4028235E+38;
+  waveData[xPhase][xAvg] = 0.00;
   phaseAvgSum = 0;
   phaseUpdateCount = 0;
 
     //Reset period data
-  periodData[0] = 0.00;
-  periodData[1] = 3.4028235E+38;
-  periodData[2] = -3.4028235E+38;
-  periodData[3] = 0.00;
+  waveData[xPeriod][xVal] = 0.00;
+  waveData[xPeriod][xMin] = 3.4028235E+38;
+  waveData[xPeriod][xMax] = -3.4028235E+38;
+  waveData[xPeriod][xAvg] = 0.00;
   periodAvgSum = 0;
   periodUpdateCount = 0;
 
@@ -427,7 +431,7 @@ void phaseMain(){
           stCurrVal = "MEASURING";
           break;
     default: 
-          stCurrVal = String(waveData[0], 2);
+          stCurrVal = String(waveData[xPhase][xVal], 2);
           break; 
   }
 
@@ -503,7 +507,7 @@ void phaseSub(){
   switch (currSubMode){
     case subMin:
           if (phaseUpdateCount > 0){
-            stCurrVal = String(waveData[1], 3);
+            stCurrVal = String(waveData[xPhase][xMin], 3);
           }
           else{
             stCurrVal = "0";
@@ -511,14 +515,14 @@ void phaseSub(){
           break;
     case subMax:
           if (phaseUpdateCount > 0){
-            stCurrVal = String(waveData[2], 3);
+            stCurrVal = String(waveData[xPhase][xMax], 3);
           }
           else{
             stCurrVal = "0";
           }
           break;
     case subAvg:
-          stCurrVal = String(waveData[3], 3);
+          stCurrVal = String(waveData[xPhase][xAvg], 3);
           break;
     case subModeSampled:
           stCurrVal = String(phaseUpdateCount);
@@ -590,7 +594,7 @@ void periodMain(){
           lcd.print("MEASURING");
           break;
     default: 
-          lcd.print(periodData[0]);
+          lcd.print(waveData[xPeriod][xVal]);
           break; 
   }
   
@@ -607,22 +611,22 @@ void periodMain(){
 
     //Sub mode output
   lcd.setCursor(0,1);
-  if( periodData[0] > 0 ){
+  if( waveData[xPeriod][xVal] > 0 ){
     switch (currSubMode){
       case subMin:
             lcd.print("Min:");
             waveCalc();
-            lcd.print(periodData[1], 3);
+            lcd.print(waveData[xPeriod][xMin], 3);
             break;
       case subMax:
             lcd.print("Max:");
             waveCalc();
-            lcd.print(periodData[2], 3);
+            lcd.print(waveData[xPeriod][xMax], 3);
             break;
       case subAvg:
             lcd.print("Avg:");
             waveCalc();
-            lcd.print(periodData[3], 3);
+            lcd.print(waveData[xPeriod][xAvg], 3);
             break;
       case subModeSampled:
             lcd.print("Samples:");
