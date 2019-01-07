@@ -38,15 +38,13 @@ const byte xDuty = 3;
 const byte xVal =0;
 const byte xMin =1;
 const byte xMax = 2;
-const byte xAvg = 3;
-
-float static waveData[4][4]{{0.00, 3.4028235E+38, -3.4028235E+38, 0.00},       
-                            {0.00, 3.4028235E+38, -3.4028235E+38, 0.00},
-                            {0.00, 3.4028235E+38, -3.4028235E+38, 0.00},
-                            {0.00, 3.4028235E+38, -3.4028235E+38, 0.00}};
+const byte xAvg = 3;                                                              //            xVal, xMin, xMax, xAvg
+float static waveData[4][4]{{0.00, 3.4028235E+38, -3.4028235E+38, 0.00},          //xPhase
+                            {0.00, 3.4028235E+38, -3.4028235E+38, 0.00},          //xPeriod
+                            {0.00, 3.4028235E+38, -3.4028235E+38, 0.00},          //xFreq
+                            {0.00, 3.4028235E+38, -3.4028235E+38, 0.00}};         //xDuty
                                                                                 
-float static freqAvg = 0.00;                                                    //Average freq Hz
-float static dutyAvg = 0;                                                       //Average positive duty cycle %
+
 unsigned long static phaseUpdateCount = 0;                                      //Running total of phase updates for calculating average
 float static phaseAvgSum = 0;                                                   //Running total of phase times for calculating average 
 unsigned long static periodUpdateCount = 0;                                     //Running total of period updates for calculating average
@@ -102,10 +100,10 @@ void loop() {
   unsigned long static loopTime;
 //  String stTest;
 //
-//  stTest = String(freqAvg, 0);
+//  stTest = String(waveData[xFreq][xVal], 0);
 //  
 //  Serial.println(millis() - loopTime);
-//  Serial.println( sizeof(freqAvg) );
+//  Serial.println( sizeof(waveData[xFreq][xVal]) );
 //  Serial.println(stTest);
 //  Serial.println( stTest.length() );
   loopTime = millis();
@@ -190,11 +188,11 @@ void waveCalc(){
       periodAvgSum += waveData[xPeriod][xVal];
       waveData[xPeriod][xAvg] = periodAvgSum / periodUpdateCount;
       
-        //Update average freq
-      freqAvg = 1 / (waveData[xPeriod][xVal] / 1000);                   //Convert copied average period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds). 
+        //Update current freq
+      waveData[xFreq][xVal] = 1 / (waveData[xPeriod][xVal] / 1000);                   //Convert copied average period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds). 
   
-        //Update average Duty
-      dutyAvg = (waveData[xPhase][xVal] / waveData[xPeriod][xVal]) * 100 ;            //positive Duty% = positive phase / period
+        //Update current Duty
+      waveData[xDuty][xVal] = (waveData[xPhase][xVal] / waveData[xPeriod][xVal]) * 100 ;            //positive Duty% = positive phase / period
    
       periodUpdateFlag = false;
     }    
@@ -224,8 +222,8 @@ void waveReset(){
   periodUpdateCount = 0;
 
     //Reset freq and duty data
-  freqAvg = 0.00;
-  dutyAvg = 0.00;
+  waveData[xFreq][xVal] = 0.00;
+  waveData[xDuty][xVal] = 0.00;
   
 }
 
@@ -665,7 +663,7 @@ void freqMain(){
   lcd.setCursor(0,0);
   lcd.print("Freq:");
   waveCalc();
-  lcd.print(freqAvg, 0);
+  lcd.print(waveData[xFreq][xVal], 0);
   lcd.setCursor(14,0);
   waveCalc();
   lcd.print("Hz");
@@ -674,7 +672,7 @@ void freqMain(){
   lcd.setCursor(0,1);
   lcd.print("+Dty:");
   waveCalc();
-  lcd.print(dutyAvg, 1);
+  lcd.print(waveData[xDuty][xVal], 1);
   waveCalc();
   lcd.setCursor(15,1);
   lcd.print("%");
