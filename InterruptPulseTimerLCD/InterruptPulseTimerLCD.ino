@@ -38,19 +38,20 @@ const byte xDuty = 3;
 const byte xVal =0;
 const byte xMin =1;
 const byte xMax = 2;
-const byte xAvg = 3;                                                              //            xVal, xMin, xMax, xAvg
-float static waveData[4][4]{{0.00, 3.4028235E+38, -3.4028235E+38, 0.00},          //xPhase
-                            {0.00, 3.4028235E+38, -3.4028235E+38, 0.00},          //xPeriod
-                            {0.00, 3.4028235E+38, -3.4028235E+38, 0.00},          //xFreq
-                            {0.00, 3.4028235E+38, -3.4028235E+38, 0.00}};         //xDuty
+const byte xAvg = 3;                  
+    //All current phase, period, freq, and duty data                        //            xVal, xMin, xMax, xAvg
+float static waveData[4][4];                                                //xPhase    {     ,     ,     ,     }
+                                                                            //xPeriod   {     ,     ,     ,     }
+                                                                            //xFreq     {     ,     ,     ,     }
+                                                                            //xDuty     {     ,     ,     ,     }
+    //Tracks sample counts and Sums for average values.
+unsigned long static phaseUpdateCount;                                      //Running total of phase updates for calculating average
+float static phaseAvgSum;                                                   //Running total of phase times for calculating average 
+unsigned long static periodUpdateCount;                                     //Running total of period updates for calculating average
+float static periodAvgSum;                                                  //Running total of period times or calculating average
+    //Tracks wave update state in waveCalc() to update display.
+byte static waveStatus = 0;                                                 //0=Extended LOW, 1=Extended HIGH, 2=Recent Phase update
                                                                                 
-
-unsigned long static phaseUpdateCount = 0;                                      //Running total of phase updates for calculating average
-float static phaseAvgSum = 0;                                                   //Running total of phase times for calculating average 
-unsigned long static periodUpdateCount = 0;                                     //Running total of period updates for calculating average
-float static periodAvgSum = 0;                                                  //Running total of period times or calculating average
-byte static waveStatus = 0;                                                     //Tracks wave update state in waveCalc() to update display.
-                                                                                    //0=Extended LOW, 1=Extended HIGH, 2=Recent Phase update
 
   //Storage for current interface mode. 
   //Updated in: modeSwitch()
@@ -90,6 +91,8 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(3), waveEnd, FALLING);
   attachInterrupt(digitalPinToInterrupt(2), waveStart, RISING);
 
+    //Set default wave statistic values
+  waveReset();
 }
 
 
@@ -188,12 +191,13 @@ void waveCalc(){
       periodAvgSum += waveData[xPeriod][xVal];
       waveData[xPeriod][xAvg] = periodAvgSum / periodUpdateCount;
       
-        //Update current freq
-      waveData[xFreq][xVal] = 1 / (waveData[xPeriod][xVal] / 1000);                   //Convert copied average period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds). 
-  
-        //Update current Duty
-      waveData[xDuty][xVal] = (waveData[xPhase][xVal] / waveData[xPeriod][xVal]) * 100 ;            //positive Duty% = positive phase / period
-   
+        //Update frequency and duty cycle data
+      for (byte i=0; i<4; i++){  
+        waveData[xFreq][i] = ( 1 / (waveData[xPeriod][i] / 1000) );         //Convert period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds). 
+        waveData[xDuty][i] = ( (waveData[xPhase][i] / waveData[xPeriod][i]) * 100 );            //positive Duty% = positive phase / period
+      }
+
+        //Reset flag until next sample set in waveStart()
       periodUpdateFlag = false;
     }    
   }
@@ -206,25 +210,19 @@ void waveReset(){
   lcd.clear();
   
     //Reset phase data
-  waveData[xPhase][xVal] = 0.00;
-  waveData[xPhase][xMin] = 3.4028235E+38;
-  waveData[xPhase][xMax] = -3.4028235E+38;
-  waveData[xPhase][xAvg] = 0.00;
+
+    for ( byte i=0; i<4; i++ ){
+  waveData[i][xVal] = 0.00;
+  waveData[i][xMin] = 3.4028235E+38;
+  waveData[i][xMax] = -3.4028235E+38;
+  waveData[i][xAvg] = 0.00;
+  }
+  
   phaseAvgSum = 0;
   phaseUpdateCount = 0;
-
-    //Reset period data
-  waveData[xPeriod][xVal] = 0.00;
-  waveData[xPeriod][xMin] = 3.4028235E+38;
-  waveData[xPeriod][xMax] = -3.4028235E+38;
-  waveData[xPeriod][xAvg] = 0.00;
   periodAvgSum = 0;
   periodUpdateCount = 0;
 
-    //Reset freq and duty data
-  waveData[xFreq][xVal] = 0.00;
-  waveData[xDuty][xVal] = 0.00;
-  
 }
 
    
