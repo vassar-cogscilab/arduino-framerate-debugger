@@ -99,18 +99,6 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-
-  unsigned long static loopTime;
-//  String stTest;
-//
-//  stTest = String(waveData[xFreq][xVal], 0);
-//  
-//  Serial.println(millis() - loopTime);
-//  Serial.println( sizeof(waveData[xFreq][xVal]) );
-//  Serial.println(stTest);
-//  Serial.println( stTest.length() );
-  loopTime = millis();
-
   waveCalc();                 //Update all wave values. Run between all function changes and print strings. 
   buttonCheck();              //Check button state
   waveCalc();                 
@@ -385,7 +373,7 @@ void threshMain(){
   lcd.setCursor(0,0);
   lcd.print("Thresh");
   lcd.setCursor(0,1);
-//  lcd.print(0x0,0x0,0x4,0xe,0x1f,0x0,0x0);
+
   
 }
 
@@ -461,13 +449,6 @@ void phaseSub(){
   byte static cursorVal;
 
   
-//    //Detect sub mode changes. Clear sub display if change detected. 
-//  if ( prevSubDisplay != currSubMode ){
-//    lcd.setCursor(0,1); 
-//    lcd.print("                ");
-//    waveCalc();        
-//  }
-
     //Print mode label and set following value cursor postion variable if mode has changed. 
   if( modeSwitchFlag == true ){
     lcd.setCursor(0,1);
