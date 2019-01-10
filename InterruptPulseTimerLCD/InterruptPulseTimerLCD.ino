@@ -45,7 +45,7 @@ float static waveData[4][4];                                                //xP
                                                                             //xFreq     {     ,     ,     ,     }
                                                                             //xDuty     {     ,     ,     ,     }
     //Tracks sample counts and Sums for average values.
-unsigned long static phaseUpdateCount;                                      //Running total of phase updates for calculating average
+unsigned long static volatile phaseUpdateCount;                             //Running total of phase updates for calculating average. Also used in waveStart() to check for recent reset. 
 float static phaseAvgSum;                                                   //Running total of phase times for calculating average 
 unsigned long static periodUpdateCount;                                     //Running total of period updates for calculating average
 float static periodAvgSum;                                                  //Running total of period times or calculating average
@@ -105,6 +105,8 @@ void loop() {
   modeSwitch();               //Update UI if button state changes.  
   //waveCalc();
   modeLaunch();               //Launch current main and sub mode settings.
+
+        
 }
 
 
@@ -143,8 +145,8 @@ void waveCalcPhase(){
   
         //Update phase average
       phaseUpdateCount ++;
-//      phaseAvgSum += waveData[xPhase][xVal];
-//      waveData[xPhase][xAvg] = phaseAvgSum / phaseUpdateCount;
+      phaseAvgSum += waveData[xPhase][xVal];
+      waveData[xPhase][xAvg] = phaseAvgSum / phaseUpdateCount;
       
       phaseUpdateFlag = false;
       waveStatus = 2;           
@@ -185,8 +187,10 @@ void waveCalcPeriod(){
     
         //Update period average
       periodUpdateCount ++;
-//      periodAvgSum += waveData[xPeriod][xVal];
-//      waveData[xPeriod][xAvg] = periodAvgSum / periodUpdateCount;
+      periodAvgSum += waveData[xPeriod][xVal];
+      waveData[xPeriod][xAvg] = periodAvgSum / periodUpdateCount;
+
+
       
         //Update frequency and duty cycle data
       for (byte i=0; i<4; i++){  
@@ -617,6 +621,8 @@ void periodMain(){
       case subModeSampled:
             lcd.print("Samples:");
             //waveCalc();
+//            Serial.println(periodAvgSum, 8);
+//            Serial.println(periodUpdateCount);
             lcd.print(periodUpdateCount);
             break;
       case subModeTotal:
@@ -675,13 +681,15 @@ void waveStart(){
    // Update Start flag and time. Set stop flag to 0 for error reduction. 
    
   waveStartTime = micros();
-  
-  if( waveStartTime > waveEndTime ){
-  wavePeriodMicros = (waveStartTime - waveStartLast);
-  waveStartLast = waveStartTime;
-  wavePeriodTotal++;
-  periodUpdateFlag = true;
-  waveCalcPeriod();
+
+  if(phaseUpdateCount > 0){ 
+    if( waveStartTime > waveEndTime ){
+    wavePeriodMicros = (waveStartTime - waveStartLast);
+    waveStartLast = waveStartTime;
+    wavePeriodTotal++;
+    periodUpdateFlag = true;
+    waveCalcPeriod();
+    }
   }
   else{
     periodUpdateFlag = false; 
