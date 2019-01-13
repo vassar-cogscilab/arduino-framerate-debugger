@@ -26,7 +26,8 @@ unsigned long volatile wavePhaseTotal = 0;          //Total number of detected p
 unsigned long volatile wavePeriodTotal = 0;         //Total number of detected period updates
 bool volatile waveStartFlag = false;                //For checking active wave status and error correction.
 bool volatile phaseUpdateFlag = false;              //For checking completed phase duration update status.
-bool volatile periodUpdateFlag = false;             //For checking completed period duration update status.  
+bool volatile periodUpdateFlag = false;             //For checking completed period duration update status.
+bool volatile waveResetFlag = true;                 //For checking recent reset. Suppresses phase data update until second rising edge.   
 
   // Storage for wave data. 
   // Updated in: waveCalc(), waveReset()
@@ -496,7 +497,7 @@ void phaseSub(){
       //String set to "0" for Min and Max if no updates have been completed to prevent string length overflow from max pos/neg float values. 
   switch (currSubMode){
     case subMin:
-          if (phaseUpdateCount > 0){
+          if (waveResetFlag == false){
             stCurrVal = String(waveData[xPhase][xMin], 3);
           }
           else{
@@ -504,7 +505,7 @@ void phaseSub(){
           }
           break;
     case subMax:
-          if (phaseUpdateCount > 0){
+          if (waveResetFlag == false){
             stCurrVal = String(waveData[xPhase][xMax], 3);
           }
           else{
@@ -682,7 +683,7 @@ void waveStart(){
    
   waveStartTime = micros();
 
-  if(phaseUpdateCount > 0){ 
+  if(waveResetFlag == false){ 
     if( waveStartTime > waveEndTime ){
     wavePeriodMicros = (waveStartTime - waveStartLast);
     waveStartLast = waveStartTime;
@@ -710,6 +711,7 @@ void waveEnd(){
       wavePhaseTotal++;
       phaseUpdateFlag = true;
       waveStartFlag = false;
+      waveResetFlag = false; 
       waveCalcPhase();
   } 
   else{
