@@ -212,7 +212,7 @@ void waveReset(){
   lcd.clear();
   
     //Reset phase data
-
+  noInterrupts();
     for ( byte i=0; i<4; i++ ){
   waveData[i][xVal] = 0.00;
   waveData[i][xMin] = 3.4028235E+38;
@@ -224,7 +224,7 @@ void waveReset(){
   phaseUpdateCount = 0;
   periodAvgSum = 0;
   periodUpdateCount = 0;
-
+  interrupts();
 }
 
    
