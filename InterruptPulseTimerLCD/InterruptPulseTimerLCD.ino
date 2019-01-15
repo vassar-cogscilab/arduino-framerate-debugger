@@ -718,3 +718,48 @@ void waveEnd(){
     waveStartFlag = false;
   }
 }
+
+
+/*
+ * 
+ * unsigned long volatile frameLength[6]{0, 1, 2, 3, 4, 5};       // Length comparisons: {<1 frame, 1f, 2f, 3f, 4f, 5f} 
+ * unsigned long volatile frameCount[7]{0,0,0,0,0,0,0};           // Count totals: {noise, 1f, 2f, 3f, 4f, 5f, >5f}
+ * unsigned int frameFreq = 60;
+ * 
+ * unsigned long frameSingle;                                     //Length of single frame in microseconds
+ * 
+ * frameSingle = (1/frameFreq)*1000000);                          //Convert frameFreq to length in microseconds 
+ * frameLength[0] = frameSingle *0.9;                             //Set minimum value to count noise/errors. 90% of frameSingle 
+ * 
+ *  //Set worst case max length of frames with 15% response lag and 8micros IRS error 
+ * for(byte i=1; i++; i<6){
+ * frameLength[1] = (( (frameSingle * i) * 1.15 ) + 8)            
+ * }
+ * 
+ * 
+ * 
+ * 
+ * 
+ * if (wavePeriodMicros < frameLength[0]){
+ *  frameCount[0]++;
+ * }
+ * else if ((wavePeriodMicros <= frameLength[1]){
+ *  frameCount[1]++;
+ * }
+ * else if ((wavePeriodMicros <= frameLength[2]){
+ *  frameCount[2]++;
+ * }
+ * else if ((wavePeriodMicros <= frameLength[3]){
+ *  frameCount[3]++;
+ * }
+ * else if ((wavePeriodMicros <= frameLength[4]){
+ *  frameCount[4]++;
+ * }
+ * else if ((wavePeriodMicros <= frameLength[5]){
+ *  frameCount[5]++;
+ * }
+ * else if ((wavePeriodMicros > frameLength[5]){
+ *  frameCount[6]++;
+ * }
+ * 
+ */
