@@ -729,11 +729,11 @@ void waveEnd(){
  * unsigned long frameSingle;                                     //Length of single frame in microseconds
  * 
  * frameSingle = (1/frameFreq)*1000000);                          //Convert frameFreq to length in microseconds 
- * frameLength[0] = frameSingle *0.9;                             //Set minimum value to count noise/errors. 90% of frameSingle 
+ * frameLength[0] = frameSingle *0.85;                             //Set minimum value to count noise/errors. 90% of frameSingle 
  * 
  *  //Set worst case max length of frames with 15% response lag and 8micros IRS error 
  * for(byte i=1; i++; i<6){
- * frameLength[1] = (( (frameSingle * i) * 1.15 ) + 8)            
+ * frameLength[1] = (( (frameSingle * i) + (frameSingle * 0.15 ) + 8)            
  * }
  * 
  * 
