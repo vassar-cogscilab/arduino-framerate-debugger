@@ -267,16 +267,9 @@ void waveReset(){
   
   lcd.clear();
   
-    //Reset store float wave data
+    //Disable interrupts, reset values and set reset flag to prevent period calc error, enable interrupts
   noInterrupts();
-  for( byte i=0; i<4; i++ ){
-    waveData[i][xVal] = 0.00;
-    waveData[i][xMin] = 3.4028235E+38;        //Reset min caputure data storage to max possible data value.
-    waveData[i][xMax] = -3.4028235E+38;       //Reset max caputure data storage to min possible data value.
-    waveData[i][xAvg] = 0.00;
-  }
-
-    //Reset live capture Ulong data
+     //Reset live capture Ulong data
   for( byte i=0; i<5; i++ ){
     if( i==1 ){                               //Reset min caputure data storage to max possible data value.
       wavePeriodLive[1] = 0xFFFFFFFF;
@@ -287,12 +280,23 @@ void waveReset(){
     wavePhaseLive[i] = 0;
     }
   }
+
+  waveResetFlag = true;                       //Set reset flag to prevent period calc updates until second rising edge. 
+  interrupts();
+
+    //Reset stored float millis data
+  for( byte i=0; i<4; i++ ){
+    waveData[i][xVal] = 0.00;
+    waveData[i][xMin] = 3.4028235E+38;        //Reset min caputure data storage to max possible data value.
+    waveData[i][xMax] = -3.4028235E+38;       //Reset max caputure data storage to min possible data value.
+    waveData[i][xAvg] = 0.00;
+  }
   
   phaseAvgSum = 0;
   phaseUpdateCount = 0;
   periodAvgSum = 0;
   periodUpdateCount = 0;
-  interrupts();
+
 }
 
    
