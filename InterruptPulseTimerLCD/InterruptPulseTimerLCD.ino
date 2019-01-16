@@ -14,15 +14,14 @@ const byte bRight = 4;
 const byte bSelect = 5;
 byte static currButton = 0;
 
-  // Volitile global variables for waveStart() and waveEnd() Interrupt Service Routines (ISRs). ***All variables used in interrupt ISRs must be global and volatile.***
-  // Updated in: waveStart(), waveEnd()
-  // Used in: waveStart(), waveEnd(), waveCalc(), phaseMain(), periodMain()
+  // Volitile global variables for waveStartISR() and waveEndISR() Interrupt Service Routines (ISRs). ***All variables used in interrupt ISRs must be global and volatile.***
+  // Updated in: waveStartISR(), waveEndISR(), waveReset()
+  // Used in: waveStartISR(), waveEndISR(), waveCalc(), phaseMain(), periodMain()
 unsigned long volatile waveStartTime = 0;           //Time micros for rising edge
 unsigned long volatile waveEndTime = 0;             //Time micros for falling edge
-unsigned long volatile wavePhaseMicros = 0;         //Time micros rising edge to falling edge
 unsigned long volatile waveStartLast = 0;           //Time micros last rising edge
-unsigned long volatile wavePeriodMicros = 0;        //Time micros rising edge to rising edge
-unsigned long volatile wavePhaseTotal = 0;          //Total number of detected phase updates
+unsigned long volatile wavePeriodLive[5] = {0,0xFFFFFFFF,0,0,0};        //{Period update: current, min, max, total for avg, count for avg}
+unsigned long volatile wavePhaseLive[5] = {0,0xFFFFFFFF,0,0,0};         //{Phase update: current, min, max, total for avg, count for avg}
 unsigned long volatile wavePeriodTotal = 0;         //Total number of detected period updates
 bool volatile waveStartFlag = false;                //For checking active wave status and error correction.
 bool volatile phaseUpdateFlag = false;              //For checking completed phase duration update status.
@@ -46,7 +45,7 @@ float static waveData[4][4];                                                //xP
                                                                             //xFreq     {     ,     ,     ,     }
                                                                             //xDuty     {     ,     ,     ,     }
     //Tracks sample counts and Sums for average values.
-unsigned long static volatile phaseUpdateCount;                             //Running total of phase updates for calculating average. Also used in waveStart() to check for recent reset. 
+unsigned long static volatile phaseUpdateCount;                             //Running total of phase updates for calculating average. Also used in waveStartISR() to check for recent reset. 
 float static phaseAvgSum;                                                   //Running total of phase times for calculating average 
 unsigned long static periodUpdateCount;                                     //Running total of period updates for calculating average
 float static periodAvgSum;                                                  //Running total of period times or calculating average
@@ -89,18 +88,76 @@ void setup() {
     // declare interrupt pins. Falling state initialized first to eliminate false updates when reset with active signal.
   pinMode(2, INPUT);
   pinMode(3, INPUT); 
-  attachInterrupt(digitalPinToInterrupt(2), waveEnd, FALLING);
-  attachInterrupt(digitalPinToInterrupt(3), waveStart, RISING);
+  attachInterrupt(digitalPinToInterrupt(2), waveEndISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(3), waveStartISR, RISING);
 
     //Set default wave statistic values
   waveReset();
 }
 
 
+void waveStartISR(){
+   // Start wave timing. Rising edge ISR. Digital pin 2
+   // Update Start flag and time. Set stop flag to 0 for error reduction. 
+   
+  waveStartTime = micros();
+
+  if(waveResetFlag == false){                                   //Skip first Period calc after reset to capture full rise to rise time. 
+    if( waveStartTime > waveEndTime ){
+    wavePeriodLive[0] = (waveStartTime - waveStartLast);
+    waveStartLast = waveStartTime;
+    wavePeriodTotal++;
+    periodUpdateFlag = true;
+    waveCalcPeriod();
+    }
+  }
+  else{
+    periodUpdateFlag = false; 
+  }
+  
+  waveStartFlag = true;
+  
+}
+
+void waveEndISR(){  
+  // End wave timing. Falling edge ISR. Digital pin 3
+  // Verify start flag and postive time difference. Update total wave time.
+
+  waveEndTime = micros();
+  
+  if( (waveStartFlag == true) && (waveEndTime - waveStartTime >= 0) ){
+      wavePhaseLive[0] = (waveEndTime - waveStartTime);
+
+      //Update phase min
+    if( wavePhaseLive[0] < wavePhaseLive[1] ){
+      wavePhaseLive[1] = wavePhaseLive[0];
+    }    
+  
+        //Update phase max
+    if( wavePhaseLive[0] > wavePhaseLive[2] ){
+      wavePhaseLive[2] = wavePhaseLive[0];
+    } 
+
+      //Update running totals for averaging
+    wavePhaseLive[3] += wavePhaseLive[0];
+    wavePhaseLive[4]++;
+
+    
+    
+    phaseUpdateFlag = true;
+    waveStartFlag = false;
+    waveResetFlag = false; 
+  } 
+  else{
+    waveStartFlag = false;
+  }
+}
+
+
 void loop() {
   // put your main code here, to run repeatedly:
 
-  //waveCalc();                 //Update all wave values. Run between all function changes and print strings. 
+  waveCalcPhase();                 //Update all wave values. Run between all function changes and print strings. 
   buttonCheck();              //Check button state
   //waveCalc();                 
   modeSwitch();               //Update UI if button state changes.  
@@ -122,40 +179,39 @@ void waveCalcPhase(){
 
 
   unsigned long static lastPhaseUpdate = 0;                                       //Time millis since last phase update
+  unsigned long wavePhaseCopy[5] = {0,0xFFFFFFFF,0,0,0};                          //For quickly copying current data without conversion
+                                                                                    //{curr phase, min, max, sum total phase, sum total count}
   interrupts();
 
 
     //Phase time and status display mode updates 
   if( phaseUpdateFlag == true ){
-    noInterrupts();
-    waveData[xPhase][xVal] = wavePhaseMicros;       //convert unsigned long phase micros to float
-    interrupts(); 
-    lastPhaseUpdate = millis();
-    waveData[xPhase][xVal] = waveData[xPhase][xVal]/1000;     //convert micros to millis         
 
-    if (waveData[xPhase][xVal] > 0 ){
-      //Update phase min
-      if( waveData[xPhase][xVal] < waveData[xPhase][xMin] ){
-        waveData[xPhase][xMin] = waveData[xPhase][xVal];
-      }
-      
-        //Update phase max
-      if( waveData[xPhase][xVal] > waveData[xPhase][xMax] ){
-        waveData[xPhase][xMax] = waveData[xPhase][xVal];
-      } 
-  
-        //Update phase average
+      //Disable interrupts, copy current data for later float and averaging conversion, enable interrupts
+    noInterrupts();
+    for (byte i=0; i<5; i++){
+    wavePhaseCopy[i] = wavePhaseLive[i];       //Copy unsigned long to unsigned long to minimize ISR down time. 
+    }
+    interrupts(); 
+    
+    lastPhaseUpdate = millis();
+
+      //Convert unsignged long micros to float millis
+    for (byte i=0; i<4; i++){
+    waveData[xPhase][i] = wavePhaseCopy[i];                       //Convert unsigned long (val, min, max, average) to float
+    waveData[xPhase][i] = waveData[xPhase][i] * 0.001;            //Convert float micros to float millis
+    }
+
+      //Calculate average millis
+    waveData[xPhase][xAvg] /= wavePhaseCopy[4];                   //Phase avg = total millis / total counts
+
       phaseUpdateCount ++;
-      phaseAvgSum += waveData[xPhase][xVal];
-      waveData[xPhase][xAvg] = phaseAvgSum / phaseUpdateCount;
-      
       phaseUpdateFlag = false;
       waveStatus = 2;           
-    }
   }
   else{                                                         //Set flags for measurement status messages 
     if( (millis() - lastPhaseUpdate) >= offResetDelay ){        //Check time since last update 
-      if ( waveStartFlag == true ){                               //From waveStart()
+      if ( waveStartFlag == true ){                               //From waveStartISR()
         waveStatus = 1;
       }
       else{
@@ -171,11 +227,11 @@ void waveCalcPeriod(){
     //Period time, freq, and duty updates
   if( periodUpdateFlag == true ){
       noInterrupts();
-      waveData[xPeriod][xVal] = wavePeriodMicros;     //convert unsigned long period micros to float
+      waveData[xPeriod][xVal] = wavePeriodLive[0];     //convert unsigned long period micros to float
       interrupts();
       waveData[xPeriod][xVal] = waveData[xPeriod][xVal]/1000;   //convert micros to millis
   
-      if ( waveData[xPeriod][xVal] > 0 ){
+      if( waveData[xPeriod][xVal] > 0 ){
         //Update period min
       if( waveData[xPeriod][xVal] < waveData[xPeriod][xMin] ){
         waveData[xPeriod][xMin] = waveData[xPeriod][xVal];
@@ -194,12 +250,12 @@ void waveCalcPeriod(){
 
       
         //Update frequency and duty cycle data
-      for (byte i=0; i<4; i++){  
+      for(byte i=0; i<4; i++){  
         waveData[xFreq][i] = ( 1 / (waveData[xPeriod][i] / 1000) );         //Convert period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds). 
         waveData[xDuty][i] = ( (waveData[xPhase][i] / waveData[xPeriod][i]) * 100 );            //positive Duty% = positive phase / period
       }
 
-        //Reset flag until next sample set in waveStart()
+        //Reset flag until next sample set in waveStartISR()
       periodUpdateFlag = false;
     }    
   }
@@ -211,13 +267,25 @@ void waveReset(){
   
   lcd.clear();
   
-    //Reset phase data
+    //Reset store float wave data
   noInterrupts();
-    for ( byte i=0; i<4; i++ ){
-  waveData[i][xVal] = 0.00;
-  waveData[i][xMin] = 3.4028235E+38;
-  waveData[i][xMax] = -3.4028235E+38;
-  waveData[i][xAvg] = 0.00;
+  for( byte i=0; i<4; i++ ){
+    waveData[i][xVal] = 0.00;
+    waveData[i][xMin] = 3.4028235E+38;        //Reset min caputure data storage to max possible data value.
+    waveData[i][xMax] = -3.4028235E+38;       //Reset max caputure data storage to min possible data value.
+    waveData[i][xAvg] = 0.00;
+  }
+
+    //Reset live capture Ulong data
+  for( byte i=0; i<5; i++ ){
+    if( i==1 ){                               //Reset min caputure data storage to max possible data value.
+      wavePeriodLive[1] = 0xFFFFFFFF;
+      wavePhaseLive[1] = 0xFFFFFFFF;
+    } 
+    else {
+    wavePeriodLive[i] = 0;
+    wavePhaseLive[i] = 0;
+    }
   }
   
   phaseAvgSum = 0;
@@ -519,7 +587,7 @@ void phaseSub(){
           stCurrVal = String(phaseUpdateCount);
           break;
     case subModeTotal:
-          stCurrVal = String(wavePhaseTotal);
+          stCurrVal = String(wavePhaseLive[4]);
           break;  
   }
 
@@ -677,53 +745,17 @@ void freqMain(){
 }
 
 
-void waveStart(){
-   // Start wave timing. Rising edge ISR. Digital pin 2
-   // Update Start flag and time. Set stop flag to 0 for error reduction. 
-   
-  waveStartTime = micros();
 
-  if(waveResetFlag == false){ 
-    if( waveStartTime > waveEndTime ){
-    wavePeriodMicros = (waveStartTime - waveStartLast);
-    waveStartLast = waveStartTime;
-    wavePeriodTotal++;
-    periodUpdateFlag = true;
-    waveCalcPeriod();
-    }
-  }
-  else{
-    periodUpdateFlag = false; 
-  }
-  
-  waveStartFlag = true;
-  
-}
 
-void waveEnd(){  
-  // End wave timing. Falling edge ISR. Digital pin 3
-  // Verify start flag and postive time difference. Update total wave time.
 
-  waveEndTime = micros();
-  
-  if( (waveStartFlag == true) && (waveEndTime - waveStartTime >= 0) ){
-      wavePhaseMicros = (waveEndTime - waveStartTime);
-      wavePhaseTotal++;
-      phaseUpdateFlag = true;
-      waveStartFlag = false;
-      waveResetFlag = false; 
-      waveCalcPhase();
-  } 
-  else{
-    waveStartFlag = false;
-  }
-}
 
 
 /*
  * 
  * unsigned long volatile frameLength[4]{0,0,0,0};        // Length comparisons to target frame count(f): {f-1 min, f-1 max, f max, f+1 max} 
  * unsigned long volatile frameCount[5]{0,0,0,0,0};       // Count totals: {<f-1, f-1, f, f+1, >f+1}
+ * 
+ * 
  * unsigned int static frameFreq = 60;                    // Store monitor frame rate
  * byte static frameTarget = 1;                           // Store target frame count for comparison
  * 
@@ -743,16 +775,16 @@ void waveEnd(){
  * 
  *  //Increment appropriate frame count. 
  *  //Check target frame conditions first to limit conditional checks if on target. 
- * if ( (wavePeriodMicros > frameLength[1]) && (wavePeriodMicros <= frameLength[2]) ){      //Between +buffered target-1 and +buffered target
+ * if ( (wavePeriodLive[0] > frameLength[1]) && (wavePeriodLive[0] <= frameLength[2]) ){      //Between +buffered target-1 and +buffered target
  *  frameCount[2]++;                                                                          //target count++
  * }
- * else if (wavePeriodMicros < frameLength[0]){                                             //Less than -buffered target-1
+ * else if (wavePeriodLive[0] < frameLength[0]){                                             //Less than -buffered target-1
  *  frameCount[0]++;                                                                          // <-1 target count++ 
  * }
- * else if (wavePeriodMicros <= frameLength[1]){                                            //Between -buffered target-1 and +buffered target-1
+ * else if (wavePeriodLive[0] <= frameLength[1]){                                            //Between -buffered target-1 and +buffered target-1
  *  frameCount[1]++;                                                                          // -1 target count++
  * }
- * else if (wavePeriodMicros <= frameLength[3]){                                            //Between +buffered target and +buffered target+1
+ * else if (wavePeriodLive[0] <= frameLength[3]){                                            //Between +buffered target and +buffered target+1
  *  frameCount[3]++;                                                                          // +1 target count++
  * }
  * else {                                                                                   //Greater than +buffered target+1
