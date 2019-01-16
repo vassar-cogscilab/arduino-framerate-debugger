@@ -23,6 +23,7 @@ unsigned long volatile waveStartLast = 0;           //Time micros last rising ed
 unsigned long volatile wavePeriodLive[5] = {0,0xFFFFFFFF,0,0,0};        //{Period update: current, min, max, total for avg, count for avg}
 unsigned long volatile wavePhaseLive[5] = {0,0xFFFFFFFF,0,0,0};         //{Phase update: current, min, max, total for avg, count for avg}
 unsigned long volatile wavePeriodTotal = 0;         //Total number of detected period updates
+unsigned long volatile waveErrorCount = 0;          //Total number of time mismatch errors detected. 
 bool volatile waveStartFlag = false;                //For checking active wave status and error correction.
 bool volatile phaseUpdateFlag = false;              //For checking completed phase duration update status.
 bool volatile periodUpdateFlag = false;             //For checking completed period duration update status.
@@ -45,8 +46,7 @@ float static waveData[4][4];                                                //xP
                                                                             //xFreq     {     ,     ,     ,     }
                                                                             //xDuty     {     ,     ,     ,     }
     //Tracks sample counts and Sums for average values.
-unsigned long static volatile phaseUpdateCount;                             //Running total of phase updates for calculating average. Also used in waveStartISR() to check for recent reset. 
-float static phaseAvgSum;                                                   //Running total of phase times for calculating average 
+unsigned long static phaseUpdateCount;                             //Running total of phase updates for calculating average. Also used in waveStartISR() to check for recent reset. 
 unsigned long static periodUpdateCount;                                     //Running total of period updates for calculating average
 float static periodAvgSum;                                                  //Running total of period times or calculating average
     //Tracks wave update state in waveCalc() to update display.
@@ -103,16 +103,18 @@ void waveStartISR(){
   waveStartTime = micros();
 
   if(waveResetFlag == false){                                   //Skip first Period calc after reset to capture full rise to rise time. 
-    if( waveStartTime > waveEndTime ){
+    if( waveStartTime > waveEndTime ){                          //Time comparision for error prevention
+      
     wavePeriodLive[0] = (waveStartTime - waveStartLast);
+    
     waveStartLast = waveStartTime;
     wavePeriodTotal++;
     periodUpdateFlag = true;
     waveCalcPeriod();
     }
-  }
-  else{
-    periodUpdateFlag = false; 
+    else{
+    waveErrorCount++;                       //Increment error count
+    }
   }
   
   waveStartFlag = true;
@@ -124,9 +126,11 @@ void waveEndISR(){
   // Verify start flag and postive time difference. Update total wave time.
 
   waveEndTime = micros();
-  
-  if( (waveStartFlag == true) && (waveEndTime - waveStartTime >= 0) ){
-      wavePhaseLive[0] = (waveEndTime - waveStartTime);
+
+    //Update values after error prevention check
+  if( (waveStartFlag == true) && (waveEndTime - waveStartTime >= 0) ){          //Check for rising edge update and compare times for error prevention
+
+    wavePhaseLive[0] = (waveEndTime - waveStartTime);           //Update phase length micros  
 
       //Update phase min
     if( wavePhaseLive[0] < wavePhaseLive[1] ){
@@ -140,16 +144,16 @@ void waveEndISR(){
 
       //Update running totals for averaging
     wavePhaseLive[3] += wavePhaseLive[0];
-    wavePhaseLive[4]++;
+    wavePhaseLive[4]++;    
 
-    
-    
-    phaseUpdateFlag = true;
-    waveStartFlag = false;
-    waveResetFlag = false; 
+      //Set trigger flags
+    phaseUpdateFlag = true;         //Tell waveCalcPhase() to update data
+    waveStartFlag = false;          //False until reset on next rising edge for error prevention
+    waveResetFlag = false;          //Set false to indicate 
   } 
   else{
-    waveStartFlag = false;
+    waveStartFlag = false;          //Error detected. Reset rising edge flag until next update.
+    waveErrorCount++;               //Increment error count
   }
 }
 
@@ -180,21 +184,18 @@ void waveCalcPhase(){
 
   unsigned long static lastPhaseUpdate = 0;                                       //Time millis since last phase update
   unsigned long wavePhaseCopy[5] = {0,0xFFFFFFFF,0,0,0};                          //For quickly copying current data without conversion
-                                                                                    //{curr phase, min, max, sum total phase, sum total count}
-  interrupts();
 
 
     //Phase time and status display mode updates 
   if( phaseUpdateFlag == true ){
 
-      //Disable interrupts, copy current data for later float and averaging conversion, enable interrupts
+      //Copy new data and update reset flag. Interrupts disabled to prevent error. 
     noInterrupts();
     for (byte i=0; i<5; i++){
     wavePhaseCopy[i] = wavePhaseLive[i];       //Copy unsigned long to unsigned long to minimize ISR down time. 
     }
+    phaseUpdateFlag = false;                   //Reset update flag
     interrupts(); 
-    
-    lastPhaseUpdate = millis();
 
       //Convert unsignged long micros to float millis
     for (byte i=0; i<4; i++){
@@ -205,17 +206,20 @@ void waveCalcPhase(){
       //Calculate average millis
     waveData[xPhase][xAvg] /= wavePhaseCopy[4];                   //Phase avg = total millis / total counts
 
-      phaseUpdateCount ++;
-      phaseUpdateFlag = false;
-      waveStatus = 2;           
+      //Update status and cycle counts. 
+    phaseUpdateCount ++;                                       //Update total calculation cycles
+    lastPhaseUpdate = millis();                                //Update time for wave status setting. 
+    waveStatus = 2;                                            //Set wave status to active current readout
   }
-  else{                                                         //Set flags for measurement status messages 
-    if( (millis() - lastPhaseUpdate) >= offResetDelay ){        //Check time since last update 
-      if ( waveStartFlag == true ){                               //From waveStartISR()
-        waveStatus = 1;
+  else{                                                        //Set flags for measurement status messages 
+
+      //Check time since last update. Update wave status if necessary.
+    if( (millis() - lastPhaseUpdate) >= offResetDelay ){        
+      if ( waveStartFlag == true ){                               //Check if a rising edge has been detected without a falling edge to detect active measurment
+        waveStatus = 1;                                           //Set status to MEASURING for extended active high
       }
       else{
-        waveStatus = 0;
+        waveStatus = 0;                                           //Set status to OFF for extended low
       }      
     }
   }
@@ -228,6 +232,8 @@ void waveCalcPeriod(){
   if( periodUpdateFlag == true ){
       noInterrupts();
       waveData[xPeriod][xVal] = wavePeriodLive[0];     //convert unsigned long period micros to float
+              //Reset flag until next sample set in waveStartISR()
+      periodUpdateFlag = false;
       interrupts();
       waveData[xPeriod][xVal] = waveData[xPeriod][xVal]/1000;   //convert micros to millis
   
@@ -255,8 +261,7 @@ void waveCalcPeriod(){
         waveData[xDuty][i] = ( (waveData[xPhase][i] / waveData[xPeriod][i]) * 100 );            //positive Duty% = positive phase / period
       }
 
-        //Reset flag until next sample set in waveStartISR()
-      periodUpdateFlag = false;
+
     }    
   }
 
@@ -267,21 +272,23 @@ void waveReset(){
   
   lcd.clear();
   
-    //Disable interrupts, reset values and set reset flag to prevent period calc error, enable interrupts
+    //reset live caputre values and set reset flag. Disable interrupts to prevent error
   noInterrupts();
      //Reset live capture Ulong data
   for( byte i=0; i<5; i++ ){
-    if( i==1 ){                               //Reset min caputure data storage to max possible data value.
+    
+    if(i == 1){                               //Reset min caputure data storage to max possible data value.
       wavePeriodLive[1] = 0xFFFFFFFF;
       wavePhaseLive[1] = 0xFFFFFFFF;
     } 
-    else {
-    wavePeriodLive[i] = 0;
+    else {                                    //Clear all other values
+    wavePeriodLive[i] = 0;                    
     wavePhaseLive[i] = 0;
     }
   }
 
   waveResetFlag = true;                       //Set reset flag to prevent period calc updates until second rising edge. 
+  waveErrorCount = 0;                         //Clear error count
   interrupts();
 
     //Reset stored float millis data
@@ -292,7 +299,6 @@ void waveReset(){
     waveData[i][xAvg] = 0.00;
   }
   
-  phaseAvgSum = 0;
   phaseUpdateCount = 0;
   periodAvgSum = 0;
   periodUpdateCount = 0;
