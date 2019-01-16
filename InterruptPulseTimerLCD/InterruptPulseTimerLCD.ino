@@ -722,44 +722,41 @@ void waveEnd(){
 
 /*
  * 
- * unsigned long volatile frameLength[6]{0, 1, 2, 3, 4, 5};       // Length comparisons: {<1 frame, 1f, 2f, 3f, 4f, 5f} 
- * unsigned long volatile frameCount[7]{0,0,0,0,0,0,0};           // Count totals: {noise, 1f, 2f, 3f, 4f, 5f, >5f}
- * unsigned int frameFreq = 60;
+ * unsigned long volatile frameLength[4]{0,0,0,0};        // Length comparisons to target frame count(f): {f-1 min, f-1 max, f max, f+1 max} 
+ * unsigned long volatile frameCount[5]{0,0,0,0,0};       // Count totals: {<f-1, f-1, f, f+1, >f+1}
+ * unsigned int static frameFreq = 60;                    // Store monitor frame rate
+ * byte static frameTarget = 1;                           // Store target frame count for comparison
  * 
- * unsigned long frameSingle;                                     //Length of single frame in microseconds
  * 
- * frameSingle = (1/frameFreq)*1000000);                          //Convert frameFreq to length in microseconds 
- * frameLength[0] = frameSingle *0.85;                             //Set minimum value to count noise/errors. 90% of frameSingle 
+ * unsigned long frameSingle = (1/frameFreq)*1000000);    //Convert frameFreq to length in microseconds 
+ * unsigned long frameBuffer = (frameSingle * 0.15);      //15% buffer for response time and trigger level tolerance
  * 
- *  //Set worst case max length of frames with 15% response lag and 8micros IRS error 
- * for(byte i=1; i++; i<6){
- * frameLength[1] = (( (frameSingle * i) + (frameSingle * 0.15 ) + 8)            
+ *  //Set minimum value for one frame under target. Balanced for worst case with 15% shorter frame and no ISR delay.
+ * frameLength[0] = ( frameSingle * (frameTarget - 1) ) - ( frameBuffer);                                                                                                                                                                 
+ * 
+ *  // Set maximum value for frames +/-1 from target. Balanced for worst case with 15% longer frame and 8uS ISR launch delay. 
+ * frameLength[1] = ( frameSingle * (frameTarget - 1) ) + frameBuffer + 8;                                                                                
+ * frameLength[2] = ( frameSingle * frameTarget )       + frameBuffer + 8;  
+ * frameLength[3] = ( frameSingle * (frameTarget + 1) ) + frameBuffer + 8;  
+ * 
+ * 
+ * 
+ *  //Increment appropriate frame count. 
+ *  //Check target frame conditions first to limit conditional checks if on target. 
+ * if ( (wavePeriodMicros > frameLength[1]) && (wavePeriodMicros <= frameLength[2]) ){      //Between +buffered target-1 and +buffered target
+ *  frameCount[2]++;                                                                          //target count++
  * }
- * 
- * 
- * 
- * 
- * 
- * if (wavePeriodMicros < frameLength[0]){
- *  frameCount[0]++;
+ * else if (wavePeriodMicros < frameLength[0]){                                             //Less than -buffered target-1
+ *  frameCount[0]++;                                                                          // <-1 target count++ 
  * }
- * else if ((wavePeriodMicros <= frameLength[1]){
- *  frameCount[1]++;
+ * else if (wavePeriodMicros <= frameLength[1]){                                            //Between -buffered target-1 and +buffered target-1
+ *  frameCount[1]++;                                                                          // -1 target count++
  * }
- * else if ((wavePeriodMicros <= frameLength[2]){
- *  frameCount[2]++;
+ * else if (wavePeriodMicros <= frameLength[3]){                                            //Between +buffered target and +buffered target+1
+ *  frameCount[3]++;                                                                          // +1 target count++
  * }
- * else if ((wavePeriodMicros <= frameLength[3]){
- *  frameCount[3]++;
- * }
- * else if ((wavePeriodMicros <= frameLength[4]){
- *  frameCount[4]++;
- * }
- * else if ((wavePeriodMicros <= frameLength[5]){
- *  frameCount[5]++;
- * }
- * else if ((wavePeriodMicros > frameLength[5]){
- *  frameCount[6]++;
+ * else {                                                                                   //Greater than +buffered target+1
+ *  frameCount[4]++;                                                                          // >+1 target count++
  * }
  * 
  */
