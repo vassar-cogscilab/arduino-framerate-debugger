@@ -57,9 +57,9 @@ byte static waveStatus = 0;                                                 //0=
   //Updated in: modeSwitch()
   //Used in: modeSwitch(), modeLaunch(), phaseMain(), periodMain()
 int static currMainMode = 1;                                                        //Store current main mode. 
-const byte mainThresh = 0;                                                            //Threshold setting and signal min/max measurment
-const byte mainPhase = 1;                                                             //Phase measurment mode
-const byte mainPeriod = 2;                                                            //Period measurment mode
+const byte mainThresh = 0;                                                            //Threshold setting and signal min/max measurement
+const byte mainPhase = 1;                                                             //Phase measurement mode
+const byte mainPeriod = 2;                                                            //Period measurement mode
 const byte mainFreq = 3;                                                              //Frequency and duty measurement mode
 int static currSubMode = 3;                                                         //Store current sub mode. (Value sets boot default)
 const byte subMin = 0;                                                                //Display Min value
@@ -76,7 +76,7 @@ bool static modeSwitchFlag = true;                                              
 const int modeSwitchDelay = 150;                    // Min millis between menu changes.
 const int modeSplashDelay = 1300;                   // Max millis to display mode config information on mode switch.
 const long modeSplashMax = 180000;                  // Max millis total run time to allow splash to display on mode switch. 
-const int offResetDelay = 10000;                    // Delay millis to hold data on screen before displaying OFF messsage. 
+const int offResetDelay = 10000;                    // Delay millis to hold data on screen before displaying OFF message. 
 
 
 void setup() {
@@ -123,7 +123,7 @@ void waveStartISR(){
 
 void waveEndISR(){  
   // End wave timing. Falling edge ISR. Digital pin 3
-  // Verify start flag and postive time difference. Update total wave time.
+  // Verify start flag and positive time difference. Update total wave time.
 
   waveEndTime = micros();
 
@@ -177,7 +177,7 @@ void waveCalcPhase(){
 
   //NOTE:  Run waveCalc() as often as practical to improve captured sample rate and data accuracy. 
     //LCD I2C communication takes the longest and therefore causes the most uncaputred samples. Insert waveCalc() between print strings.  
-    //Execution time increases with frequency do to interrupts. True for all functions, but especially waveCalc. Noticably slower above 10kHz. 
+    //Execution time increases with frequency do to interrupts. True for all functions, but especially waveCalc. Noticeably slower above 10kHz. 
     //Min execution: 4uSec (without signal updates) 
     //Max durations: 300uSec @60Hz; 310uSec @144Hz; 320uSec @2kHz; 350uSec @5kHz; 415uSec @10kHz; 675uSec @20kHz; 2015uSec @31kHz. 
 
@@ -197,7 +197,7 @@ void waveCalcPhase(){
     phaseUpdateFlag = false;                   //Reset update flag
     interrupts(); 
 
-      //Convert unsignged long micros to float millis
+      //Convert unsigned long micros to float millis
     for (byte i=0; i<4; i++){
     waveData[xPhase][i] = wavePhaseCopy[i];                       //Convert unsigned long (val, min, max, average) to float
     waveData[xPhase][i] = waveData[xPhase][i] * 0.001;            //Convert float micros to float millis
@@ -215,7 +215,7 @@ void waveCalcPhase(){
 
       //Check time since last update. Update wave status if necessary.
     if( (millis() - lastPhaseUpdate) >= offResetDelay ){        
-      if ( waveStartFlag == true ){                               //Check if a rising edge has been detected without a falling edge to detect active measurment
+      if ( waveStartFlag == true ){                               //Check if a rising edge has been detected without a falling edge to detect active measurement
         waveStatus = 1;                                           //Set status to MEASURING for extended active high
       }
       else{
@@ -272,12 +272,12 @@ void waveReset(){
   
   lcd.clear();
   
-    //reset live caputre values and set reset flag. Disable interrupts to prevent error
+    //reset live capture values and set reset flag. Disable interrupts to prevent error
   noInterrupts();
      //Reset live capture Ulong data
   for( byte i=0; i<5; i++ ){
     
-    if(i == 1){                               //Reset min caputure data storage to max possible data value.
+    if(i == 1){                               //Reset min capture data storage to max possible data value.
       wavePeriodLive[1] = 0xFFFFFFFF;
       wavePhaseLive[1] = 0xFFFFFFFF;
     } 
@@ -294,8 +294,8 @@ void waveReset(){
     //Reset stored float millis data
   for( byte i=0; i<4; i++ ){
     waveData[i][xVal] = 0.00;
-    waveData[i][xMin] = 3.4028235E+38;        //Reset min caputure data storage to max possible data value.
-    waveData[i][xMax] = -3.4028235E+38;       //Reset max caputure data storage to min possible data value.
+    waveData[i][xMin] = 3.4028235E+38;        //Reset min capture data storage to max possible data value.
+    waveData[i][xMax] = -3.4028235E+38;       //Reset max capture data storage to min possible data value.
     waveData[i][xAvg] = 0.00;
   }
   
@@ -398,7 +398,7 @@ void modeLaunch(){
 
       //Check if main mode has been switched. 
     if( (currButton == bLeft) || (currButton == bRight) ){
-      modeSplashStart = millis();                                 //Reset mode spash screen reference time
+      modeSplashStart = millis();                                 //Reset mode splash screen reference time
     }
  
       //Check if splash display time has been met. 
@@ -541,7 +541,7 @@ void phaseSub(){
   byte static cursorVal;
 
   
-    //Print mode label and set following value cursor postion variable if mode has changed. 
+    //Print mode label and set following value cursor position variable if mode has changed. 
   if( modeSwitchFlag == true ){
     lcd.setCursor(0,1);
     switch (currSubMode){
