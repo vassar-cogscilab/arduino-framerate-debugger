@@ -223,6 +223,7 @@ void waveCalcPhase(){
     phaseUpdateCount ++;                                       //Update total calculation cycles
     lastPhaseUpdate = millis();                                //Update time for wave status setting. 
     waveStatus = 2;                                            //Set wave status to active current readout
+    phaseUpdateFlag = false;                                   //Clear update flag.
   }
   else{                                                        //Set flags for measurement status messages 
 
@@ -271,6 +272,7 @@ void waveCalcPeriod(){
 
       //Update period refresh count
     periodUpdateCount++;                      //Update total calculation cycles
+    periodUpdateFlag = false;                 //Clear update flag.
   }
 
 }
