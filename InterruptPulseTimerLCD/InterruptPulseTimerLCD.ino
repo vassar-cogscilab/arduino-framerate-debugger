@@ -103,7 +103,7 @@ void waveStartISR(){
   waveStartTime = micros();
 
   if(waveResetFlag == false){                                   //Skip first Period calc after reset to capture full rise to rise time. 
-    if( waveStartTime > waveEndTime ){                          //Time comparision for error prevention
+    if( waveStartTime > waveEndTime ){                          //Time comparison for error prevention
       
     wavePeriodLive[0] = (waveStartTime - waveStartLast);
     
@@ -306,7 +306,7 @@ void waveReset(){
 }
 
    
-byte buttonCheck() {
+void buttonCheck() {
   //return button value as byte variable
   
   uint8_t buttons = lcd.readButtons();
