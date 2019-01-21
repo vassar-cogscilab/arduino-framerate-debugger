@@ -219,7 +219,7 @@ void waveCalcPhase(){
       //Calculate average millis
     waveData[xPhase][xAvg] /= wavePhaseCopy[4];                   //Phase avg = total millis / total counts
 
-      //Update status and cycle counts. 
+      //Update status and refresh counts. 
     phaseUpdateCount ++;                                       //Update total calculation cycles
     lastPhaseUpdate = millis();                                //Update time for wave status setting. 
     waveStatus = 2;                                            //Set wave status to active current readout
@@ -267,7 +267,10 @@ void waveCalcPeriod(){
     for(byte i=0; i<4; i++){  
       waveData[xFreq][i] = ( 1 / (waveData[xPeriod][i] * 0.001) );         //Convert period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds). 
       waveData[xDuty][i] = ( (waveData[xPhase][i] / waveData[xPeriod][i]) * 100 );            //positive Duty% = positive phase / period
-    }  
+    }
+
+      //Update period refresh count
+    periodUpdateCount++;                      //Update total calculation cycles
   }
 
 }
