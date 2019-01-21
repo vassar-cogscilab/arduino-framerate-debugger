@@ -173,7 +173,8 @@ void waveEndISR(){
 void loop() {
   // put your main code here, to run repeatedly:
 
-  waveCalcPhase();                 //Update all wave values. Run between all function changes and print strings. 
+  waveCalcPhase();                 //Update all wave values. Run between all function changes and print strings.
+  waveCalcPeriod();    
   buttonCheck();              //Check button state
   //waveCalc();                 
   modeSwitch();               //Update UI if button state changes.  
