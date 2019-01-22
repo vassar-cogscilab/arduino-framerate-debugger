@@ -75,7 +75,8 @@ bool static modeSwitchFlag = true;                                              
 const int modeSwitchDelay = 150;                    // Min millis between menu changes.
 const int modeSplashDelay = 1300;                   // Max millis to display mode config information on mode switch.
 const long modeSplashMax = 180000;                  // Max millis total run time to allow splash to display on mode switch. 
-const int offResetDelay = 10000;                    // Delay millis to hold data on screen before displaying OFF message. 
+const int offResetDelay = 10000;                    // Delay millis to hold data on screen before displaying OFF message.
+unsigned long static lastModeSwitch = 0;            //Millis since last mode switch. 
 
 
 void setup() {
@@ -127,6 +128,9 @@ void waveStartISR(){
     else{
     waveErrorCount++;                       //Increment error count
     }
+  }
+  else{
+    waveStartLast = waveStartTime;           //Update time for first period calc after reset
   }
   
   waveStartFlag = true;                     //Set flag to be check in waveEndISR(). 
@@ -348,13 +352,9 @@ void buttonCheck() {
 
 void modeSwitch(){
   // Loop through modes or reset wave stats with buttons. Clear display after any button press. Maintain currMainMode else. 
-    //Button functions: (bRight = Main++), (bLeft = Main--), (bUp = Sub++), (bDown = Sub--), (bSelect = Reset stats). 
-  
-  unsigned long static lastModeSwitch = 0;         //Millis since last mode switch.
+    //Button functions: (bRight = Main++), (bLeft = Main--), (bSelect = Reset stats). 
                                                         
   const byte mainModeList[] = {mainThresh, mainPhase, mainPeriod, mainFreq};            //List and order of main modes to cycle with left/right
-  const byte subModeList[] = {subMin, subMax, subAvg, subModeSampled, subModeTotal};    //List and order of sub modes to cycle with up/down
-
 
       
   if( currButton != 0 ){
@@ -365,34 +365,21 @@ void modeSwitch(){
               if ( currMainMode > (sizeof(mainModeList) - 1) ){
                 currMainMode = 0;
               }
+              modeUpdate();
               break;
         case bLeft:
               currMainMode-- ;                
               if (currMainMode < 0){
                 currMainMode = (sizeof(mainModeList) - 1);
               }
-              break;
-        case bUp:
-              currSubMode++ ;
-              if ( currSubMode > (sizeof(subModeList) - 1) ){
-                currSubMode = 0;
-              }
-              break;
-        case bDown:
-              currSubMode-- ;
-              if (currSubMode < 0){
-                currSubMode = ( sizeof(subModeList) - 1 );
-              }
+              modeUpdate();
               break;
         case bSelect:
+              modeUpdate();
               waveReset();
               break;
       }
     currMainMode = mainModeList[currMainMode];          //Set main mode changes
-    currSubMode = subModeList[currSubMode];             //Set sub mode changes
-    lastModeSwitch = millis();                          //Reset mode switch reference time
-    lcd.clear();
-    modeSwitchFlag = true;  
     }
   }
 }
@@ -502,6 +489,8 @@ void phaseMain(){
   String stCurrVal;
   byte stCurrLength;
 
+    //Prepare sub mode
+  subSwitch();
 
     //Print mode label if mode has changed.  Set in modeSwitch(). reset in sub mode function.  
   if(modeSwitchFlag == true){
@@ -538,7 +527,6 @@ void phaseMain(){
   //waveCalc();
   
   stPrevLength = stCurrLength;  
-
 
   phaseSub();
   
@@ -656,7 +644,10 @@ void periodMain(){
   byte static prevMainDisplay = 0;
   byte static prevSubDisplay = 0;
 
-    
+    //Prepare sub mode
+  subSwitch();
+
+      
     //Detect waveStatus changes. Clear display if change detected. 
   if ( prevMainDisplay != waveStatus ){
     lcd.clear(); 
@@ -768,7 +759,46 @@ void freqMain(){
 
 
 
+void subSwitch(){
 
+  // Loop through sub modes with buttons. Clear display after any button press. Maintain currSubMode else. 
+    //Button functions: (bUp = Sub++), (bDown = Sub--) 
+
+  
+  const byte subModeList[] = {subMin, subMax, subAvg, subModeSampled, subModeTotal};    //List and order of sub modes to cycle with up/down
+
+     
+  if( currButton != 0 ){
+    if( millis() - lastModeSwitch >= modeSwitchDelay){      //Check if minimum switch delay is met for more controlled switching. 
+      switch (currButton){
+        case bUp:
+              currSubMode++ ;
+              if ( currSubMode > (sizeof(subModeList) - 1) ){
+                currSubMode = 0;
+              }
+              modeUpdate();
+              break;
+        case bDown:
+              currSubMode-- ;
+              if (currSubMode < 0){
+                currSubMode = ( sizeof(subModeList) - 1 );
+              }
+              modeUpdate();
+              break;
+      }
+    currSubMode = subModeList[currSubMode];             //Set sub mode changes    
+    }
+  }
+}
+  
+
+void modeUpdate(){
+  //For update time for switch debouncing, clear display, and set flag for proper display. 
+
+  lastModeSwitch = millis();                          //Reset mode switch reference time
+  lcd.clear();                                        //Clear display
+  modeSwitchFlag = true;                              //Trigger mode label reprint
+}
 
 
 
