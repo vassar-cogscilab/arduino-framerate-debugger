@@ -176,9 +176,7 @@ void loop() {
   waveCalcPhase();                 //Update all wave values. Run between all function changes and print strings.
   waveCalcPeriod();    
   buttonCheck();              //Check button state
-  //waveCalc();                 
   modeSwitch();               //Update UI if button state changes.  
-  //waveCalc();
   modeLaunch();               //Launch current main and sub mode settings.
 
         
@@ -437,6 +435,7 @@ void modeLaunch(){
     }
   }
 
+    //Clear display first time splash screen time check fails (modeSplashDelay or modeSplashMax exceeded)
   if( splashClearFlag == true ){
     lcd.clear();
     splashClearFlag = false;
