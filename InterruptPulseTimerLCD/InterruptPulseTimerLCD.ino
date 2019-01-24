@@ -47,7 +47,6 @@ float static waveData[4][4];                                                //xP
     //Tracks sample counts and Sums for average values.
 unsigned long static phaseUpdateCount;                             //Running total of phase updates for calculating average. Also used in waveStartISR() to check for recent reset. 
 unsigned long static periodUpdateCount;                                     //Running total of period updates for calculating average
-float static periodAvgSum;                                                  //Running total of period times or calculating average
     //Tracks wave update state in waveCalc() to update display.
 byte static waveStatus = 0;                                                 //0=Extended LOW, 1=Extended HIGH, 2=Recent Phase update
                                                                                 
@@ -315,7 +314,6 @@ void waveReset(){
   }
   
   phaseUpdateCount = 0;
-  periodAvgSum = 0;
   periodUpdateCount = 0;
 
 }
@@ -453,7 +451,6 @@ void threshSplash(){
   
   lcd.setCursor(0,0);
   lcd.print("Threshold Setup");
-  //waveCalc();
   lcd.setCursor(0,1);
   lcd.print("Up/Dn-Set thresh");
    
@@ -474,7 +471,6 @@ void phaseSplash(){
   
   lcd.setCursor(0,0);
   lcd.print("Phase: mSeconds");
-  //waveCalc();
   lcd.setCursor(0,1);
   lcd.print("U/D-Stat Sel-RSt"); 
   
@@ -482,7 +478,6 @@ void phaseSplash(){
 
 void phaseMain(){
   //Phase mode top line display controls
-  //waveCalc() inserted between all strings. 
 
     //Store previous and current value string lengths. For clearing field if length reduces. 
   byte static stPrevLength = 0;
@@ -496,7 +491,6 @@ void phaseMain(){
   if(modeSwitchFlag == true){
   lcd.setCursor(0,0);
   lcd.print("Phase:");
-  //waveCalc(); 
   }
 
     //Set main value string based on current waveStatus (set in waveCalc())
@@ -519,12 +513,10 @@ void phaseMain(){
   if ( stCurrLength < stPrevLength ){
     lcd.setCursor(6,0);
     lcd.print("          ");
-    //waveCalc();
   }
 
   lcd.setCursor(6,0);
   lcd.print(stCurrVal);
-  //waveCalc();
   
   stPrevLength = stCurrLength;  
 
@@ -567,7 +559,6 @@ void phaseSub(){
             break;  
     }
     
-    //waveCalc();
     
   }
 
@@ -608,7 +599,6 @@ void phaseSub(){
   if(stCurrLength < stPrevLength){
     lcd.setCursor(cursorVal, 1);
     lcd.print("            ");
-    //waveCalc();
   }
 
     //Set cursor to match mode label. Print value. 
@@ -631,7 +621,6 @@ void periodSplash(){
   
   lcd.setCursor(0,0);
   lcd.print("Period: mSeconds");
-  //waveCalc();
   lcd.setCursor(0,1);
   lcd.print("U/D-Stat Sel-RSt");
    
@@ -650,14 +639,12 @@ void periodMain(){
       
     //Detect waveStatus changes. Clear display if change detected. 
   if ( prevMainDisplay != waveStatus ){
-    lcd.clear(); 
-    //waveCalc();   
+    lcd.clear();  
   }
 
     //Main mode output
   lcd.setCursor(0,0);
   lcd.print("Period:");
-  //waveCalc();
   switch (waveStatus){
     case 0:
           lcd.print("0.00  OFF");
@@ -670,15 +657,13 @@ void periodMain(){
           break; 
   }
   
-  prevMainDisplay = waveStatus;
-  //waveCalc();                 
+  prevMainDisplay = waveStatus;              
 
   
     //Detect sub mode changes. Clear sub display if change detected. 
   if ( prevSubDisplay != currSubMode ){
     lcd.setCursor(0,1); 
-    lcd.print("                ");
-    //waveCalc();       
+    lcd.print("                ");    
   }
 
     //Sub mode output
@@ -687,29 +672,22 @@ void periodMain(){
     switch (currSubMode){
       case subMin:
             lcd.print("Min:");
-            //waveCalc();
             lcd.print(waveData[xPeriod][xMin], 3);
             break;
       case subMax:
             lcd.print("Max:");
-            //waveCalc();
             lcd.print(waveData[xPeriod][xMax], 3);
             break;
       case subAvg:
             lcd.print("Avg:");
-            //waveCalc();
             lcd.print(waveData[xPeriod][xAvg], 3);
             break;
       case subModeSampled:
             lcd.print("Samples:");
-            //waveCalc();
-//            Serial.println(periodAvgSum, 8);
-//            Serial.println(periodUpdateCount);
             lcd.print(periodUpdateCount);
             break;
       case subModeTotal:
             lcd.print("Total:");
-            //waveCalc();
             lcd.print(wavePeriodLive[4]);
             break;  
     }
@@ -727,7 +705,6 @@ void freqSplash(){
     
   lcd.setCursor(0,0);
   lcd.print("Frequency: Hz");
-  //waveCalc();
   lcd.setCursor(0,1);
   lcd.print("+Duty Cycle: %"); 
         
@@ -738,18 +715,13 @@ void freqMain(){
   
   lcd.setCursor(0,0);
   lcd.print("Freq:");
-  //waveCalc();
   lcd.print(waveData[xFreq][xVal], 0);
   lcd.setCursor(14,0);
-  //waveCalc();
   lcd.print("Hz");
-  //waveCalc();
 
   lcd.setCursor(0,1);
   lcd.print("+Dty:");
-  //waveCalc();
   lcd.print(waveData[xDuty][xVal], 1);
-  //waveCalc();
   lcd.setCursor(15,1);
   lcd.print("%");
 
