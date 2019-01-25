@@ -4,9 +4,9 @@
 #include <utility/Adafruit_MCP23017.h>
 Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
 
-// Storage for button status. 
-// Updated in: buttonCheck()
-// Used in: buttonCheck(), modeSwitch()
+  // Storage for button status. 
+  // Updated in: buttonCheck()
+  // Used in: buttonCheck(), modeSwitch()
 const byte bUp = 1;
 const byte bDown = 2;
 const byte bLeft = 3;
@@ -28,7 +28,7 @@ bool volatile phaseUpdateFlag = false;              //For checking completed pha
 bool volatile periodUpdateFlag = false;             //For checking completed period duration update status.
 bool volatile waveResetFlag = true;                 //For checking recent reset. Suppresses phase data update until second rising edge.   
 
-  // Storage for wave data. 
+  // Storage for ISRwave data. 
   // Updated in: ISRwaveCalc(), waveReset()
   // Used in: ISRwaveCalc(), waveReset(), phaseMain(), periodMain(), freqMain()
 const byte xPhase =0;
@@ -41,7 +41,7 @@ const byte xMax = 2;
 const byte xAvg = 3;                  
     //All current phase, period, freq, and duty data. Initialized in setup() via waveReset(). 
                                                                             //            xVal, xMin, xMax, xAvg
-float static waveData[4][4];                                                //xPhase    {     ,     ,     ,     }
+float static ISRwaveData[4][4];                                             //xPhase    {     ,     ,     ,     }
                                                                             //xPeriod   {     ,     ,     ,     }
                                                                             //xFreq     {     ,     ,     ,     }
                                                                             //xDuty     {     ,     ,     ,     }
@@ -50,7 +50,16 @@ unsigned long static phaseUpdateCount;                             //Running tot
 unsigned long static periodUpdateCount;                                     //Running total of period updates for calculating average
     //Tracks wave update state in ISRwaveCalc() to update display.
 byte static waveStatus = 0;                                                 //0=Extended LOW, 1=Extended HIGH, 2=Recent Phase update
-                                                                                
+
+/*
+  //Storage for ADCwave data
+const byte minADC = 0;
+const byte maxADC = 1;
+const byte halfADC = 2;
+int static ADCwaveData[3] = {1023,0,0};                       //{minADC, maxADC, halfADC}
+int static ADCwaveToPWM = 0;                                  //Quarter wave height mapped to PWM value for threshold recommendation.
+unsigned long static analogUpdateCount = 0;
+*/
 
   //Storage for current interface mode. 
   //Updated in: modeSwitch()
@@ -70,6 +79,14 @@ const byte subModeTotal = 4;                                                    
   //Tells mode functions to print mode label to reduce unnecessary lcd writes. Must start TRUE
 bool static modeSwitchFlag = true;                                                                                                                                        //For reducing unnecessary lcd print cycles. 
 
+  //Threshold global variables
+const byte threshOutPin = 6;                        //Threshold PWM output pin
+const byte threshInPin = A1;                        //Threshold analog input sense pin
+byte static threshOut;                              //Threshold PWM output setting. Initialized in setup(). 
+
+  //Analog wave sense global variables
+const byte analogWavePin = A0;                         //Analog wave sense pin
+
 
   //Delays for mode changes and status updates
 const int modeSwitchDelay = 150;                    // Min millis between menu changes.
@@ -78,11 +95,6 @@ const long modeSplashMax = 180000;                  // Max millis total run time
 const int offResetDelay = 10000;                    // Delay millis to hold data on screen before displaying OFF message.
 unsigned long static lastModeSwitch = 0;            //Millis since last mode switch. 
 
-  //Threshold setting globals
-const byte threshOutPin = 6;                        //Threshold PWM output pin
-const byte threshInPin = A1;                        //Threshold analog input sense pin
-byte static threshOut;                              //Threshold PWM output setting. Initialized in setup(). 
-
 
 void setup() {
   // put your setup code here, to run once:
@@ -90,7 +102,12 @@ void setup() {
   Serial.begin(9600);
   lcd.begin(16, 2);
 
-    //Initialize threshold output. Delay 3sec to allow capacitor charing value stabilizing. 
+    //Initialize threshold and analog wave sense pins
+  pinMode(threshInPin, INPUT);
+  pinMode(analogWavePin, INPUT);
+
+    //Initialize threshold output. Delay 3sec to allow capacitor charing value stabilizing.
+  pinMode(threshOutPin, OUTPUT);   
   threshOut = 100;
   analogWrite(threshOutPin, threshOut);
   delay(3000);
@@ -218,12 +235,12 @@ void ISRwaveCalc(){
 
       //Convert unsigned long micros to float millis
     for (byte i=0; i<4; i++){
-    waveData[xPhase][i] = waveMicrosCopy[i];                       //Convert unsigned long (val, min, max, average) to float
-    waveData[xPhase][i] = waveData[xPhase][i] * 0.001;            //Convert float micros to float millis
+    ISRwaveData[xPhase][i] = waveMicrosCopy[i];                       //Convert unsigned long (val, min, max, average) to float
+    ISRwaveData[xPhase][i] = ISRwaveData[xPhase][i] * 0.001;            //Convert float micros to float millis
     }
 
       //Calculate average millis
-    waveData[xPhase][xAvg] /= waveMicrosCopy[4];                   //Phase avg = total millis / total counts
+    ISRwaveData[xPhase][xAvg] /= waveMicrosCopy[4];                   //Phase avg = total millis / total counts
 
       //Update status and refresh counts. 
     phaseUpdateCount ++;                                       //Update total calculation cycles
@@ -258,18 +275,18 @@ void ISRwaveCalc(){
     
       //Convert unsigned long micros to float millis
     for (byte i=0; i<4; i++){
-      waveData[xPeriod][i] = waveMicrosCopy[i];                       //Convert unsigned long (val, min, max, average) to float
-      waveData[xPeriod][i] = waveData[xPeriod][i] * 0.001;             //Convert float micros to float millis
+      ISRwaveData[xPeriod][i] = waveMicrosCopy[i];                       //Convert unsigned long (val, min, max, average) to float
+      ISRwaveData[xPeriod][i] = ISRwaveData[xPeriod][i] * 0.001;             //Convert float micros to float millis
     }
 
       //Calculate average period millis
-    waveData[xPeriod][xAvg] /= waveMicrosCopy[4];                   //Phase avg = total millis / total counts
+    ISRwaveData[xPeriod][xAvg] /= waveMicrosCopy[4];                   //Phase avg = total millis / total counts
 
     
       //Update frequency and duty cycle data
     for(byte i=0; i<4; i++){  
-      waveData[xFreq][i] = ( 1 / (waveData[xPeriod][i] * 0.001) );         //Convert period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds). 
-      waveData[xDuty][i] = ( (waveData[xPhase][i] / waveData[xPeriod][i]) * 100 );            //positive Duty% = positive phase / period
+      ISRwaveData[xFreq][i] = ( 1 / (ISRwaveData[xPeriod][i] * 0.001) );         //Convert period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds). 
+      ISRwaveData[xDuty][i] = ( (ISRwaveData[xPhase][i] / ISRwaveData[xPeriod][i]) * 100 );            //positive Duty% = positive phase / period
     }
 
       //Update period refresh count
@@ -278,6 +295,14 @@ void ISRwaveCalc(){
   }
 
 }
+
+/*   ADCwaveCalc
+void ADCwaveCalc(){
+
+
+  
+}
+*/
 
 void waveReset(){
   //Reset all wave data to default values
@@ -308,10 +333,10 @@ void waveReset(){
 
     //Reset stored float millis data
   for( byte i=0; i<4; i++ ){
-    waveData[i][xVal] = 0.00;
-    waveData[i][xMin] = 3.4028235E+38;        //Reset min capture data storage to max possible data value.
-    waveData[i][xMax] = -3.4028235E+38;       //Reset max capture data storage to min possible data value.
-    waveData[i][xAvg] = 0.00;
+    ISRwaveData[i][xVal] = 0.00;
+    ISRwaveData[i][xMin] = 3.4028235E+38;        //Reset min capture data storage to max possible data value.
+    ISRwaveData[i][xMax] = -3.4028235E+38;       //Reset max capture data storage to min possible data value.
+    ISRwaveData[i][xAvg] = 0.00;
   }
   
   phaseUpdateCount = 0;
@@ -562,7 +587,7 @@ void phaseMain(){
           stCurrVal = "MEASURING";
           break;
     default: 
-          stCurrVal = String(waveData[xPhase][xVal], 2);
+          stCurrVal = String(ISRwaveData[xPhase][xVal], 2);
           break; 
   }
 
@@ -631,7 +656,7 @@ void phaseSub(){
   switch (currSubMode){
     case subMin:
           if (waveResetFlag == false){
-            stCurrVal = String(waveData[xPhase][xMin], 3);
+            stCurrVal = String(ISRwaveData[xPhase][xMin], 3);
           }
           else{
             stCurrVal = "0";
@@ -639,14 +664,14 @@ void phaseSub(){
           break;
     case subMax:
           if (waveResetFlag == false){
-            stCurrVal = String(waveData[xPhase][xMax], 3);
+            stCurrVal = String(ISRwaveData[xPhase][xMax], 3);
           }
           else{
             stCurrVal = "0";
           }
           break;
     case subAvg:
-          stCurrVal = String(waveData[xPhase][xAvg], 3);
+          stCurrVal = String(ISRwaveData[xPhase][xAvg], 3);
           break;
     case subModeSampled:
           stCurrVal = String(phaseUpdateCount);
@@ -716,7 +741,7 @@ void periodMain(){
           stCurrVal = "MEASURING";
           break;
     default: 
-          stCurrVal = String(waveData[xPeriod][xVal], 2);
+          stCurrVal = String(ISRwaveData[xPeriod][xVal], 2);
           break; 
   }
 
@@ -785,7 +810,7 @@ void periodSub(){
   switch (currSubMode){
     case subMin:
           if (waveResetFlag == false){
-            stCurrVal = String(waveData[xPeriod][xMin], 3);
+            stCurrVal = String(ISRwaveData[xPeriod][xMin], 3);
           }
           else{
             stCurrVal = "0";
@@ -793,14 +818,14 @@ void periodSub(){
           break;
     case subMax:
           if (waveResetFlag == false){
-            stCurrVal = String(waveData[xPeriod][xMax], 3);
+            stCurrVal = String(ISRwaveData[xPeriod][xMax], 3);
           }
           else{
             stCurrVal = "0";
           }
           break;
     case subAvg:
-          stCurrVal = String(waveData[xPeriod][xAvg], 3);
+          stCurrVal = String(ISRwaveData[xPeriod][xAvg], 3);
           break;
     case subModeSampled:
           stCurrVal = String(periodUpdateCount);
@@ -849,13 +874,13 @@ void freqMain(){
   
   lcd.setCursor(0,0);
   lcd.print("Freq:");
-  lcd.print(waveData[xFreq][xVal], 0);
+  lcd.print(ISRwaveData[xFreq][xVal], 0);
   lcd.setCursor(14,0);
   lcd.print("Hz");
 
   lcd.setCursor(0,1);
   lcd.print("+Dty:");
-  lcd.print(waveData[xDuty][xVal], 1);
+  lcd.print(ISRwaveData[xDuty][xVal], 1);
   lcd.setCursor(15,1);
   lcd.print("%");
 
@@ -911,7 +936,7 @@ void modeUpdate(){
 /*
  * 
  * *****Notes: *********
- * Verify min/max for waveData can be initialized as 0.00 after updating ISRwaveCalc behavior
+ * Verify min/max for ISRwaveData can be initialized as 0.00 after updating ISRwaveCalc behavior
  * 
  * 
  * 
