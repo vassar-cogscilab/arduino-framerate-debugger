@@ -39,7 +39,8 @@ const byte xVal =0;
 const byte xMin =1;
 const byte xMax = 2;
 const byte xAvg = 3;                  
-    //All current phase, period, freq, and duty data                        //            xVal, xMin, xMax, xAvg
+    //All current phase, period, freq, and duty data. Initialized in setup() via waveReset(). 
+                                                                            //            xVal, xMin, xMax, xAvg
 float static waveData[4][4];                                                //xPhase    {     ,     ,     ,     }
                                                                             //xPeriod   {     ,     ,     ,     }
                                                                             //xFreq     {     ,     ,     ,     }
@@ -66,7 +67,7 @@ const byte subAvg = 2;                                                          
 const byte subModeSampled = 3;                                                        //Display Samples captured in ISRwaveCalc().
 const byte subModeTotal = 4;                                                          //Display Total updates since start
 
-//Tells mode functions to print mode label to reduce unnecessary lcd writes. Must start TRUE
+  //Tells mode functions to print mode label to reduce unnecessary lcd writes. Must start TRUE
 bool static modeSwitchFlag = true;                                                                                                                                        //For reducing unnecessary lcd print cycles. 
 
 
@@ -77,6 +78,11 @@ const long modeSplashMax = 180000;                  // Max millis total run time
 const int offResetDelay = 10000;                    // Delay millis to hold data on screen before displaying OFF message.
 unsigned long static lastModeSwitch = 0;            //Millis since last mode switch. 
 
+  //Threshold setting globals
+const byte threshOutPin = 6;                        //Threshold PWM output pin
+const byte threshInPin = A1;                        //Threshold analog input sense pin
+byte static threshOut;                              //Threshold PWM output setting. Initialized in setup(). 
+
 
 void setup() {
   // put your setup code here, to run once:
@@ -84,13 +90,19 @@ void setup() {
   Serial.begin(9600);
   lcd.begin(16, 2);
 
+    //Initialize threshold output. Delay 3sec to allow capacitor charing value stabilizing. 
+  threshOut = 100;
+  analogWrite(threshOutPin, threshOut);
+  delay(3000);
+
+  
     // declare interrupt pins. Falling state initialized first to eliminate false updates when reset with active signal.
   pinMode(2, INPUT);
   pinMode(3, INPUT); 
   attachInterrupt(digitalPinToInterrupt(2), waveEndISR, FALLING);
   attachInterrupt(digitalPinToInterrupt(3), waveStartISR, RISING);
 
-    //Set default wave statistic values
+    //Set default wave statistic values. Must be included in setup to initialize variables. 
   waveReset();
 }
 
@@ -447,12 +459,71 @@ void threshSplash(){
 
 void threshMain(){
 
-  lcd.setCursor(0,0);
-  lcd.print("Thresh");
-  lcd.setCursor(0,1);
+  String stCurrPWM;
+  String stCurrADC;
+  byte stCurrLengthPWM = 0;
+  byte stCurrLengthADC = 0;
+  byte static stPrevLengthPWM = 0;
+  byte static stPrevLengthADC = 0;
 
+    //Print mode label if mode has changed.  Set in modeSwitch().
+  if(modeSwitchFlag == true){
+  lcd.setCursor(0,0);
+  lcd.print("Thresh PWM:");
+  lcd.setCursor(0,1);
+  lcd.print("Thresh ADC:");
+  }
+
+    //Set string values for printing
+  stCurrPWM = String(threshOut);
+  stCurrADC = String(analogRead(threshInPin));
+
+
+    //Update current value string length. Clear value display if character length decreased. 
+    //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
+  stCurrLengthPWM = stCurrPWM.length();
+  stCurrLengthADC = stCurrADC.length();
+  if (stCurrLengthPWM < stPrevLengthPWM){
+    lcd.setCursor(11,0);
+    lcd.print("     ");
+  }
+  if (stCurrLengthADC < stPrevLengthADC){
+    lcd.setCursor(11,1);
+    lcd.print("     ");
+  }
+
+    //Print string values
+  lcd.setCursor(11,0);
+  lcd.print(stCurrPWM);
+  lcd.setCursor(11,1);
+  lcd.print(stCurrADC);
+
+
+    //Check for threshold setting updates
+  if( currButton != 0 ){
+    if( millis() - lastModeSwitch >= modeSwitchDelay){      //Check if minimum switch delay is met for more controlled switching. 
+      switch (currButton){
+        case bUp:
+              if (threshOut != 255){
+                threshOut++;
+              }
+              break;
+        case bDown:
+              if (threshOut != 0){
+                threshOut--;
+              }
+              break;
+      }
+    analogWrite(threshOutPin, threshOut);             //Set sub mode changes
+    lastModeSwitch = millis();    
+    }
+  }
   
+  
+    //Prevent label from reprinting until next mode change. 
+  modeSwitchFlag = false;
 }
+
 
 
 void phaseSplash(){
@@ -838,6 +909,13 @@ void modeUpdate(){
 
 
 /*
+ * 
+ * *****Notes: *********
+ * Verify min/max for waveData can be initialized as 0.00 after updating ISRwaveCalc behavior
+ * 
+ * 
+ * 
+ ********** Prototype frame count code: *************
  * 
  * unsigned long volatile frameLength[4]{0,0,0,0};        // Length comparisons to target frame count(f): {f-1 min, f-1 max, f max, f+1 max} 
  * unsigned long volatile frameCount[5]{0,0,0,0,0};       // Count totals: {<f-1, f-1, f, f+1, >f+1}
