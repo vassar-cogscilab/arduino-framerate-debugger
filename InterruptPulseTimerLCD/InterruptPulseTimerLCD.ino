@@ -16,7 +16,7 @@ byte static currButton = 0;
 
   // Volitile global variables for waveStartISR() and waveEndISR() Interrupt Service Routines (ISRs). ***All variables used in interrupt ISRs must be global and volatile.***
   // Updated in: waveStartISR(), waveEndISR(), waveReset()
-  // Used in: waveStartISR(), waveEndISR(), waveCalc(), phaseMain(), periodMain()
+  // Used in: waveStartISR(), waveEndISR(), ISRwaveCalc(), phaseMain(), periodMain()
 unsigned long volatile waveStartTime = 0;           //Time micros for rising edge
 unsigned long volatile waveEndTime = 0;             //Time micros for falling edge
 unsigned long volatile waveStartLast = 0;           //Time micros last rising edge
@@ -29,8 +29,8 @@ bool volatile periodUpdateFlag = false;             //For checking completed per
 bool volatile waveResetFlag = true;                 //For checking recent reset. Suppresses phase data update until second rising edge.   
 
   // Storage for wave data. 
-  // Updated in: waveCalc(), waveReset()
-  // Used in: waveCalc(), waveReset(), phaseMain(), periodMain(), freqMain()
+  // Updated in: ISRwaveCalc(), waveReset()
+  // Used in: ISRwaveCalc(), waveReset(), phaseMain(), periodMain(), freqMain()
 const byte xPhase =0;
 const byte xPeriod =1;
 const byte xFreq =2;
@@ -47,7 +47,7 @@ float static waveData[4][4];                                                //xP
     //Tracks sample counts and Sums for average values.
 unsigned long static phaseUpdateCount;                             //Running total of phase updates for calculating average. Also used in waveStartISR() to check for recent reset. 
 unsigned long static periodUpdateCount;                                     //Running total of period updates for calculating average
-    //Tracks wave update state in waveCalc() to update display.
+    //Tracks wave update state in ISRwaveCalc() to update display.
 byte static waveStatus = 0;                                                 //0=Extended LOW, 1=Extended HIGH, 2=Recent Phase update
                                                                                 
 
@@ -63,7 +63,7 @@ int static currSubMode = 3;                                                     
 const byte subMin = 0;                                                                //Display Min value
 const byte subMax = 1;                                                                //Display Max value
 const byte subAvg = 2;                                                                //Display Average value
-const byte subModeSampled = 3;                                                        //Display Samples captured in waveCalc().
+const byte subModeSampled = 3;                                                        //Display Samples captured in ISRwaveCalc().
 const byte subModeTotal = 4;                                                          //Display Total updates since start
 
 //Tells mode functions to print mode label to reduce unnecessary lcd writes. Must start TRUE
@@ -120,7 +120,7 @@ void waveStartISR(){
     wavePeriodLive[3] += wavePeriodLive[0];
     wavePeriodLive[4]++;    
 
-      //Update period comparision time. Set flag to trigger period update in waveCalcPeriod(). 
+      //Update period comparision time. Set flag to trigger period update in ISRwaveCalc(). 
     waveStartLast = waveStartTime;                     
     periodUpdateFlag = true;
     }
@@ -162,7 +162,7 @@ void waveEndISR(){
     wavePhaseLive[4]++;    
 
       //Set trigger flags
-    phaseUpdateFlag = true;         //Tell waveCalcPhase() to update data
+    phaseUpdateFlag = true;         //Tell ISRwaveCalc() to update data
     waveStartFlag = false;          //False until reset on next rising edge for error prevention
     waveResetFlag = false;          //Set false to indicate 
   } 
@@ -176,8 +176,7 @@ void waveEndISR(){
 void loop() {
   // put your main code here, to run repeatedly:
 
-  waveCalcPhase();                 //Update all wave values. Run between all function changes and print strings.
-  waveCalcPeriod();    
+  ISRwaveCalc();              //Update all wave values measured from interrupts.
   buttonCheck();              //Check button state
   modeSwitch();               //Update UI if button state changes.  
   modeLaunch();               //Launch current main and sub mode settings.
@@ -186,19 +185,13 @@ void loop() {
 }
 
 
-void waveCalcPhase(){
-  //Calculate wave phase times and statistics if update detected. 
-
-  //NOTE:  Run waveCalc() as often as practical to improve captured sample rate and data accuracy. 
-    //LCD I2C communication takes the longest and therefore causes the most uncaputred samples. Insert waveCalc() between print strings.  
-    //Execution time increases with frequency do to interrupts. True for all functions, but especially waveCalc. Noticeably slower above 10kHz. 
-    //Min execution: 4uSec (without signal updates) 
-    //Max durations: 300uSec @60Hz; 310uSec @144Hz; 320uSec @2kHz; 350uSec @5kHz; 415uSec @10kHz; 675uSec @20kHz; 2015uSec @31kHz. 
-
+void ISRwaveCalc(){
+  //Recalculate wave data taken from ISR's if updated
 
   unsigned long static lastPhaseUpdate = 0;                                       //Time millis since last phase update
-  unsigned long wavePhaseCopy[5] = {0,0xFFFFFFFF,0,0,0};                          //For quickly copying current data without conversion
+  unsigned long waveMicrosCopy[5] = {0,0xFFFFFFFF,0,0,0};                          //For quickly copying current data without conversion
 
+  //Calculate wave phase times and statistics if update detected. 
 
     //Phase time and status display mode updates 
   if( phaseUpdateFlag == true ){
@@ -206,19 +199,19 @@ void waveCalcPhase(){
       //Copy new data and update reset flag. Interrupts disabled to prevent error. 
     noInterrupts();
     for (byte i=0; i<5; i++){
-    wavePhaseCopy[i] = wavePhaseLive[i];       //Copy unsigned long to unsigned long to minimize ISR down time. 
+    waveMicrosCopy[i] = wavePhaseLive[i];       //Copy unsigned long to unsigned long to minimize ISR down time. 
     }
     phaseUpdateFlag = false;                   //Reset update flag
     interrupts(); 
 
       //Convert unsigned long micros to float millis
     for (byte i=0; i<4; i++){
-    waveData[xPhase][i] = wavePhaseCopy[i];                       //Convert unsigned long (val, min, max, average) to float
+    waveData[xPhase][i] = waveMicrosCopy[i];                       //Convert unsigned long (val, min, max, average) to float
     waveData[xPhase][i] = waveData[xPhase][i] * 0.001;            //Convert float micros to float millis
     }
 
       //Calculate average millis
-    waveData[xPhase][xAvg] /= wavePhaseCopy[4];                   //Phase avg = total millis / total counts
+    waveData[xPhase][xAvg] /= waveMicrosCopy[4];                   //Phase avg = total millis / total counts
 
       //Update status and refresh counts. 
     phaseUpdateCount ++;                                       //Update total calculation cycles
@@ -238,31 +231,27 @@ void waveCalcPhase(){
       }      
     }
   }
-}
 
-void waveCalcPeriod(){
-    //Calculate wave period times, frequency, duty cycle and statistics if update detected. 
-
-  unsigned long wavePeriodCopy[5] = {0,0xFFFFFFFF,0,0,0};                          //For quickly copying current data without conversion
+ //Calculate wave period times, frequency, duty cycle and statistics if update detected. 
 
     //Period time, freq, and duty updates
   if( periodUpdateFlag == true ){
     
     noInterrupts();
     for (byte i=0; i<5; i++){
-      wavePeriodCopy[i] = wavePeriodLive[i];       //Copy unsigned long to unsigned long to minimize ISR down time. 
+      waveMicrosCopy[i] = wavePeriodLive[i];       //Copy unsigned long to unsigned long to minimize ISR down time. 
     }
     periodUpdateFlag = false;
     interrupts();
     
       //Convert unsigned long micros to float millis
     for (byte i=0; i<4; i++){
-      waveData[xPeriod][i] = wavePeriodCopy[i];                       //Convert unsigned long (val, min, max, average) to float
+      waveData[xPeriod][i] = waveMicrosCopy[i];                       //Convert unsigned long (val, min, max, average) to float
       waveData[xPeriod][i] = waveData[xPeriod][i] * 0.001;             //Convert float micros to float millis
     }
 
       //Calculate average period millis
-    waveData[xPeriod][xAvg] /= wavePeriodCopy[4];                   //Phase avg = total millis / total counts
+    waveData[xPeriod][xAvg] /= waveMicrosCopy[4];                   //Phase avg = total millis / total counts
 
     
       //Update frequency and duty cycle data
@@ -493,7 +482,7 @@ void phaseMain(){
   lcd.print("Phase:");
   }
 
-    //Set main value string based on current waveStatus (set in waveCalc())
+    //Set main value string based on current waveStatus (set in ISRwaveCalc())
   switch (waveStatus){
     case 0:
           stCurrVal = "0.00   OFF";
