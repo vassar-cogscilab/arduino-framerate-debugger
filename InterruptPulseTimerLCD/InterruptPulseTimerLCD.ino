@@ -523,6 +523,9 @@ void threshMain(){
   lcd.setCursor(11,1);
   lcd.print(stCurrADC);
 
+  stPrevLengthPWM = stCurrLengthPWM;
+  stPrevLengthADC = stCurrLengthADC;
+
 
     //Check for threshold setting updates
   if( currButton != 0 ){
@@ -540,7 +543,8 @@ void threshMain(){
               break;
       }
     analogWrite(threshOutPin, threshOut);             //Set sub mode changes
-    lastModeSwitch = millis();    
+    lastModeSwitch = millis();
+        
     }
   }
   
@@ -937,14 +941,17 @@ void modeUpdate(){
  * 
  * *****Notes: *********
  * Verify min/max for ISRwaveData can be initialized as 0.00 after updating ISRwaveCalc behavior
+ * Add analog wave calc values to reset function
  * 
  * 
  * 
  ********** Prototype frame count code: *************
  * 
- * unsigned long volatile frameLength[4]{0,0,0,0};        // Length comparisons to target frame count(f): {f-1 min, f-1 max, f max, f+1 max} 
- * unsigned long volatile frameCount[5]{0,0,0,0,0};       // Count totals: {<f-1, f-1, f, f+1, >f+1}
+ *  //Counts for given frame count ± target
+ * unsigned long volatile frameCount[9]{0,0,0,0,0,0,0,0,0};       // Count totals: {<f-3, f-3, f-2, f-1, f, f+1, f+2, f+3, >f+3}
  * 
+ *  // Length comparisons to target frame count(f). 
+ * unsigned long volatile frameLength[8]{0,0,0,0,0,0,0,0};        //{f-3 min, f-3 max, f-2 max, f-1 max, f max, f+1 max, f+2 max, f+3max}  
  * 
  * unsigned int static frameFreq = 60;                    // Store monitor frame rate
  * byte static frameTarget = 1;                           // Store target frame count for comparison
@@ -953,10 +960,13 @@ void modeUpdate(){
  * unsigned long frameSingle = (1/frameFreq)*1000000);    //Convert frameFreq to length in microseconds 
  * unsigned long frameBuffer = (frameSingle * 0.15);      //15% buffer for response time and trigger level tolerance
  * 
+ * 
+ * 
  *  //Set minimum value for one frame under target. Balanced for worst case with 15% shorter frame and no ISR delay.
  * frameLength[0] = ( frameSingle * (frameTarget - 1) ) - ( frameBuffer);                                                                                                                                                                 
  * 
- *  // Set maximum value for frames +/-1 from target. Balanced for worst case with 15% longer frame and 8uS ISR launch delay. 
+ * 
+ *  // Set maximum value for frames ±1 from target. Balanced for worst case with 15% longer frame and 8uS ISR launch delay. 
  * frameLength[1] = ( frameSingle * (frameTarget - 1) ) + frameBuffer + 8;                                                                                
  * frameLength[2] = ( frameSingle * frameTarget )       + frameBuffer + 8;  
  * frameLength[3] = ( frameSingle * (frameTarget + 1) ) + frameBuffer + 8;  
