@@ -64,7 +64,7 @@ unsigned long static analogUpdateCount = 0;
   //Storage for current interface mode. 
   //Updated in: modeSwitch()
   //Used in: modeSwitch(), modeLaunch(), phaseMain(), periodMain()
-int static currMainMode = 1;                                                        //Store current main mode. 
+
 int static currSubMode = 3;                                                         //Store current sub mode. (Value sets boot default)
 const byte subMin = 0;                                                                //Display Min value
 const byte subMax = 1;                                                                //Display Max value
@@ -376,7 +376,7 @@ void modeSwitch(){
   // Loop through modes or reset wave stats with buttons. Clear display after any button press. Maintain currMainMode else. 
     //Button functions: (bRight = Main++), (bLeft = Main--), (bSelect = Reset stats). 
 
-
+  int static currMainMode = 1;                                                        //Store current main mode. 
   const byte mainThresh = 0;                                                            //Threshold setting and signal min/max measurement
   const byte mainPhase = 1;                                                             //Phase measurement mode
   const byte mainPeriod = 2;                                                            //Period measurement mode
@@ -412,7 +412,7 @@ void modeSwitch(){
   }
 
 
-/*
+/*  Code to run splash screens
   unsigned long static modeSplashStart = 0;             //Time Millis of new mode start. For brief config display. 
   bool static splashClearFlag = false;                  //Used to trigger screen clear if splash was displayed
   
@@ -605,7 +605,7 @@ void phaseMain(){
   byte stCurrLength;
 
     //Check for sub mode updates and screen clear flags. 
-  subSwitch();
+  subSwitch1();
 
     //Print mode label if mode has changed.  Set in modeSwitch(). reset in sub mode function after full print completed. 
   if(modeSwitchFlag == true){
@@ -750,7 +750,7 @@ void periodMain(){
   byte stCurrLength;
 
     //Check for sub mode updates and screen clear flags. 
-  subSwitch();
+  subSwitch1();
 
     //Print mode label if mode has changed.  Set in modeSwitch(). reset in sub mode function after full print completed. 
   if(modeSwitchFlag == true){
@@ -895,7 +895,7 @@ void freqMain(){
   byte stCurrLength;
 
     //Check for sub mode updates and screen clear flags. 
-  subSwitch();
+  subSwitch1();
 
     //Print mode label if mode has changed.  Set in modeSwitch(). reset in sub mode function after full print completed. 
   if(modeSwitchFlag == true){
@@ -1039,7 +1039,7 @@ void dutyMain(){
   byte stCurrLength;
 
     //Check for sub mode updates and screen clear flags. 
-  subSwitch();
+  subSwitch1();
 
     //Print mode label if mode has changed.  Set in modeSwitch(). reset in sub mode function after full print completed. 
   if(modeSwitchFlag == true){
@@ -1175,7 +1175,7 @@ void dutySub(){
 }
 
 
-void subSwitch(){
+void subSwitch1(){
 
   // Loop through sub modes with buttons. Clear display after any button press. Maintain currSubMode else. 
     //Button functions: (bUp = Sub++), (bDown = Sub--) 
@@ -1248,9 +1248,22 @@ void modeUpdate(){
  * 
  * 
  *  // Set maximum value for frames ±1 from target. Balanced for worst case with 15% longer frame and 8uS ISR launch delay. 
+ *  
+ *  
  * frameLength[1] = ( frameSingle * (frameTarget - 1) ) + frameBuffer + 8;                                                                                
  * frameLength[2] = ( frameSingle * frameTarget )       + frameBuffer + 8;  
  * frameLength[3] = ( frameSingle * (frameTarget + 1) ) + frameBuffer + 8;  
+ * 
+ * 
+ * 
+ * if (frameTarget - i) < 0){
+ *  frameLength[i] = 0;
+ * }else if ( (frameTarget - i) = 0 ){
+ *  frameLength[i] = frameSingle - frameBuffer;
+ * }else{
+ *  frameLength[i] = ( frameSingle * (frameTarget - i) ) + frameBuffer + 8;
+ * 
+ * if ( i == 
  * 
  * 
  * 
