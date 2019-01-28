@@ -65,11 +65,6 @@ unsigned long static analogUpdateCount = 0;
   //Updated in: modeSwitch()
   //Used in: modeSwitch(), modeLaunch(), phaseMain(), periodMain()
 int static currMainMode = 1;                                                        //Store current main mode. 
-const byte mainThresh = 0;                                                            //Threshold setting and signal min/max measurement
-const byte mainPhase = 1;                                                             //Phase measurement mode
-const byte mainPeriod = 2;                                                            //Period measurement mode
-const byte mainFreq = 3;                                                              //Frequency measurement mode 
-const byte mainDuty = 4;                                                              //Duty cycle measurement mode
 int static currSubMode = 3;                                                         //Store current sub mode. (Value sets boot default)
 const byte subMin = 0;                                                                //Display Min value
 const byte subMax = 1;                                                                //Display Max value
@@ -212,7 +207,6 @@ void loop() {
   ISRwaveCalc();              //Update all wave values measured from interrupts.
   buttonCheck();              //Check button state
   modeSwitch();               //Update UI if button state changes.  
-  modeLaunch();               //Launch current main and sub mode settings.
 
         
 }
@@ -381,7 +375,13 @@ void buttonCheck() {
 void modeSwitch(){
   // Loop through modes or reset wave stats with buttons. Clear display after any button press. Maintain currMainMode else. 
     //Button functions: (bRight = Main++), (bLeft = Main--), (bSelect = Reset stats). 
-                                                        
+
+
+  const byte mainThresh = 0;                                                            //Threshold setting and signal min/max measurement
+  const byte mainPhase = 1;                                                             //Phase measurement mode
+  const byte mainPeriod = 2;                                                            //Period measurement mode
+  const byte mainFreq = 3;                                                              //Frequency measurement mode 
+  const byte mainDuty = 4;                                                              //Duty cycle measurement mode                                                      
   const byte mainModeList[] = {mainThresh, mainPhase, mainPeriod, mainFreq, mainDuty};            //List and order of main modes to cycle with left/right
 
       
@@ -410,11 +410,6 @@ void modeSwitch(){
     currMainMode = mainModeList[currMainMode];          //Set main mode changes
     }
   }
-}
-
-
-void modeLaunch(){
-   //Launch mode set in modeSwitch()
 
 
 /*
