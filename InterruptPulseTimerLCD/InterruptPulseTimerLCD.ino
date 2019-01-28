@@ -90,8 +90,8 @@ const byte analogWavePin = A0;                         //Analog wave sense pin
 
   //Delays for mode changes and status updates
 const int modeSwitchDelay = 150;                    // Min millis between menu changes.
-const int modeSplashDelay = 1300;                   // Max millis to display mode config information on mode switch.
-const long modeSplashMax = 180000;                  // Max millis total run time to allow splash to display on mode switch. 
+//const int modeSplashDelay = 1300;                   // Max millis to display mode config information on mode switch.
+//const long modeSplashMax = 180000;                  // Max millis total run time to allow splash to display on mode switch. 
 const int offResetDelay = 10000;                    // Delay millis to hold data on screen before displaying OFF message.
 unsigned long static lastModeSwitch = 0;            //Millis since last mode switch. 
 
@@ -101,6 +101,9 @@ void setup() {
   
   Serial.begin(9600);
   lcd.begin(16, 2);
+
+  lcd.setCursor(0,0);
+  lcd.print("Initializing");
 
     //Initialize threshold and analog wave sense pins
   pinMode(threshInPin, INPUT);
@@ -412,6 +415,8 @@ void modeSwitch(){
 void modeLaunch(){
    //Launch mode set in modeSwitch()
 
+
+/*
   unsigned long static modeSplashStart = 0;             //Time Millis of new mode start. For brief config display. 
   bool static splashClearFlag = false;                  //Used to trigger screen clear if splash was displayed
   
@@ -451,6 +456,8 @@ void modeLaunch(){
     lcd.clear();
     splashClearFlag = false;
   }
+*/
+
  
     //Begin function associated with main mode number. Run splash display for set hold time, clear after. 
   switch (currMainMode){
@@ -471,7 +478,7 @@ void modeLaunch(){
 }
 
 
-
+/*  Splash screen code
 void threshSplash(){
   //Splash display for entering Threshold setup mode. 
   
@@ -481,6 +488,41 @@ void threshSplash(){
   lcd.print("Up/Dn-Set thresh");
    
 }
+
+
+void phaseSplash(){
+  //Splash display for entering phase time mode. 
+  
+  lcd.setCursor(0,0);
+  lcd.print("Phase: mSeconds");
+  lcd.setCursor(0,1);
+  lcd.print("U/D-Stat Sel-RSt"); 
+  
+}
+
+
+void periodSplash(){
+  //Splash display for entering period time mode. 
+  
+  lcd.setCursor(0,0);
+  lcd.print("Period: mSeconds");
+  lcd.setCursor(0,1);
+  lcd.print("U/D-Stat Sel-RSt");
+   
+}
+
+
+void freqSplash(){
+    //Splash display for entering Frequency and Duty Cycle mode.
+    
+  lcd.setCursor(0,0);
+  lcd.print("Frequency: Hz");
+  lcd.setCursor(0,1);
+  lcd.print("+Duty Cycle: %"); 
+        
+}
+
+*/
 
 void threshMain(){
 
@@ -554,16 +596,6 @@ void threshMain(){
 }
 
 
-
-void phaseSplash(){
-  //Splash display for entering phase time mode. 
-  
-  lcd.setCursor(0,0);
-  lcd.print("Phase: mSeconds");
-  lcd.setCursor(0,1);
-  lcd.print("U/D-Stat Sel-RSt"); 
-  
-}
 
 void phaseMain(){
   //Phase mode top print line display settings
@@ -709,16 +741,6 @@ void phaseSub(){
 }
 
 
-void periodSplash(){
-  //Splash display for entering period time mode. 
-  
-  lcd.setCursor(0,0);
-  lcd.print("Period: mSeconds");
-  lcd.setCursor(0,1);
-  lcd.print("U/D-Stat Sel-RSt");
-   
-}
-
 void periodMain(){
   //Period mode top print line display settings
 
@@ -862,16 +884,6 @@ void periodSub(){
   
 }
 
-
-void freqSplash(){
-    //Splash display for entering Frequency and Duty Cycle mode.
-    
-  lcd.setCursor(0,0);
-  lcd.print("Frequency: Hz");
-  lcd.setCursor(0,1);
-  lcd.print("+Duty Cycle: %"); 
-        
-}
 
 void freqMain(){
   //Frequency mode display controls
