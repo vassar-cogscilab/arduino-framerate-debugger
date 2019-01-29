@@ -12,7 +12,7 @@ Allow simulation several minutes to and stabilize threshold and upper limit volt
 Lowpass filters used in trigger circuits utilize large capactors which need to be charged. 
 The simulation speed rate is significatly lower than live testing speeds. Live adjustments will stablize in about 3 seconds. 
 
-The simulated waveform is a very rough approximation of a photocell output measuring a single ON fram with two OFF frames from a 60Hz display.
+The simulated waveform is a very rough approximation of a photocell output measuring a single ON frame with two OFF frames from a 60Hz display.
 The signal is created with a 20Hz 30% duty cycle pulse at 100mV. 
 Noise from brightness settings is created with a 300Hz triagle wave at 500mV and can be toggled on/off.
 True measured photocell outputs have a DC offset based on ambient light and more rounded waves. 
