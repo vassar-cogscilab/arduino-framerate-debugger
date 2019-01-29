@@ -107,7 +107,7 @@ void setup() {
 
     //Initialize threshold output. Delay 3sec to allow capacitor charing value stabilizing.
   pinMode(threshOutPin, OUTPUT);   
-  threshOut = 100;
+  threshOut = 75;
   analogWrite(threshOutPin, threshOut);
   delay(3000);
 
