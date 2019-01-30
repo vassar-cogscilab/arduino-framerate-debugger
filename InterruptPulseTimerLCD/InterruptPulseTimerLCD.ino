@@ -280,12 +280,24 @@ void ISRwaveCalc(){
       //Calculate average period millis
     ISRwaveData[xPeriod][xAvg] /= waveMicrosCopy[4];                   //Phase avg = total millis / total counts
 
-    
-      //Update frequency and duty cycle data
-    for(byte i=0; i<4; i++){  
-      ISRwaveData[xFreq][i] = ( 1 / (ISRwaveData[xPeriod][i] * 0.001) );         //Convert period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds). 
-      ISRwaveData[xDuty][i] = ( (ISRwaveData[xPhase][i] / ISRwaveData[xPeriod][i]) * 100 );            //positive Duty% = positive phase / period
+
+      //Update frequency data. Convert period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds).
+    ISRwaveData[xFreq][xVal] = ( 1 / (ISRwaveData[xPeriod][xVal] * 0.001) );          //Current frequency Hz = 1/ (Current period time in seconds).
+    ISRwaveData[xFreq][xMin] = ( 1 / (ISRwaveData[xPeriod][xMax] * 0.001) );          //Min frequency Hz = 1/ (Max period time in seconds). Freq and period are inversely related
+    ISRwaveData[xFreq][xMax] = ( 1 / (ISRwaveData[xPeriod][xMin] * 0.001) );          //Max frequency Hz = 1/ (Min period time in seconds). Freq and period are inversely related       
+    ISRwaveData[xFreq][xAvg] = ( 1 / (ISRwaveData[xPeriod][xAvg] * 0.001) );          //Average frequency Hz = 1/ (Average period time in seconds).
+
+
+      //Update duty cycle data
+    ISRwaveData[xDuty][xVal] = ( (ISRwaveData[xPhase][xVal] / ISRwaveData[xPeriod][xVal]) * 100 );            //Current positive Duty% = Current phase / Current period
+    ISRwaveData[xDuty][xAvg] = ( (ISRwaveData[xPhase][xAvg] / ISRwaveData[xPeriod][xAvg]) * 100 );            //Average positive Duty% = Average phase / Average period. Overall averages used to capture general wave nature. 
+    if( ISRwaveData[xDuty][xVal] < ISRwaveData[xDuty][xMin] ){                                                //Update Min. Discrete duty cycles must be taken from the same wave. Cannot use overall phase and period min
+      ISRwaveData[xDuty][xMin] = ISRwaveData[xDuty][xVal]; 
+    } 
+    if( ISRwaveData[xDuty][xVal] > ISRwaveData[xDuty][xMax] ){                                                //Update Max. Discrete duty cycles must be taken from the same wave. Cannot use overall phase and period max
+      ISRwaveData[xDuty][xMax] = ISRwaveData[xDuty][xVal]; 
     }
+    
 
       //Update period refresh count
     periodUpdateCount++;                      //Update total calculation cycles
