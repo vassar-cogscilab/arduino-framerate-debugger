@@ -339,6 +339,10 @@ void waveReset(){
   phaseUpdateFlag = false;                    //Clear phase update flag
   periodUpdateFlag = false;                   //Clear period update flag
   waveErrorCount = 0;                         //Clear error count
+
+    //Clear external interrupt flags to prevent immediate launch of ISRs if interrupt request triggered while data was being reset.
+    //Fixes device reset bug due to recurrsive calls of IRSs after data reset.   
+  EIFR = 0x03;                                //Write logical 1 to INTF1 and INTF0 bits of EIFR (External Interrupt Flag Register). Atmega328P datasheet page 55 for details.  
   interrupts();
 
     //Reset stored float millis data
