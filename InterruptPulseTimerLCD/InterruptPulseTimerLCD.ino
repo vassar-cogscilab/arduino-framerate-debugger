@@ -1224,6 +1224,51 @@ void subSwitch1(){
 }
   
 
+byte subSwitch2(int currSub = 0, int totalSub = 1){
+  // Loop through sub modes with buttons. Maintain currSub else. Cycle speed increased once if held 
+    //Button functions: (bUp = Sub++), (bDown = Sub--) 
+    //Takes current sub mode and total number of sub modes from passing function. Returns updated current sub mode. 
+  
+  
+  unsigned int static holdCycles = 0;
+  int static holdBoost = 0; 
+
+    //Reset sub switch cycle count to 0. Returns debounce speed to modeSwitchDelay setting. 
+  if (currButton == 0){
+    holdCycles = 0;
+  }
+
+    //Sets holdBoost to 1/2 modeSwitchDelay. Doubles speed of mode value changes if button is held. 
+  if (holdCycles >= 30 ){
+    holdBoost = modeSwitchDelay >> 1;
+  }  
+    
+  if( currButton != 0 ){
+    if( millis() - lastModeSwitch >= modeSwitchDelay - holdBoost ){      //Check if minimum switch delay is met for more controlled switching. Speed doubled if held
+      switch (currButton){
+        case bUp:
+              currSub++ ;
+              if ( currSub >= totalSub ){
+                currSub = 0;
+              }
+
+              break;
+        case bDown:
+              currSub ;
+              if ( currSub < 0 ){
+                currSub = totalSub - 1;
+              }
+              break;
+      }
+    lastModeSwitch = millis();                          //Reset mode switch reference time
+    modeSwitchFlag = true;                              //Trigger mode label reprint 
+    holdCycles++;
+    return currSub;    
+    }
+  }
+}
+
+
 void modeUpdate(){
   //For update time for switch debouncing, clear display, and set flag for proper display. 
 
