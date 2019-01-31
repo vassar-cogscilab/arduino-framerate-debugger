@@ -584,6 +584,9 @@ void threshMain(){
   stPrevLengthADC = stCurrLengthADC;
 
 
+  threshOut = subSwitch2(threshOut, 250, 10);             //Update threshold setting with Up/Down buttons. max value 250, min value 10
+
+/*
     //Check for threshold setting updates
   if( currButton != 0 ){
     if( millis() - lastModeSwitch >= modeSwitchDelay){      //Check if minimum switch delay is met for more controlled switching. 
@@ -604,6 +607,10 @@ void threshMain(){
         
     }
   }
+
+*/
+
+  analogWrite(threshOutPin, threshOut);             //Set sub mode changes
   
   
     //Prevent label from reprinting until next mode change. 
