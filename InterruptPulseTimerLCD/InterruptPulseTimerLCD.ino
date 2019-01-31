@@ -399,7 +399,6 @@ void modeSwitch(){
   const byte mainFreq = 3;                                                              //Frequency measurement mode 
   const byte mainDuty = 4;                                                              //Duty cycle measurement mode                                                      
   const byte mainModeList[] = {mainThresh, mainPhase, mainPeriod, mainFreq, mainDuty};            //List and order of main modes to cycle with left/right
-
       
   if( currButton != 0 ){
     if( millis() - lastModeSwitch >= modeSwitchDelay){      //Check if minimum switch delay is met for more controlled switching. 
@@ -489,7 +488,7 @@ void modeSwitch(){
           dutyMain();
           break;
   }
-
+  return;
 }
 
 
@@ -549,8 +548,8 @@ int subSwitch2(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
   unsigned int static holdCycles = 0;           //Current count of cycles while button is held
   byte static subValChange = 1;                 //Number to increment/decrement subVal. Increases if hold cycle check passes. 
   byte const cyclesBeforeBoost = 30;            //Number of cycles to count before boosted speed begins. 
-                                                  //Time before boost = modeSwitchDelay * cyclesBeforeBoost. 30 = about 5 seconds with 150ms delay.
-
+  
+  
     //Set subValChange based on hold cycle count. Increases value change speed if button is held. 
   if (holdCycles > cyclesBeforeBoost ){
     subValChange = 10;
@@ -568,7 +567,6 @@ int subSwitch2(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
               if ( currSubVal > maxSubVal ){
                 currSubVal = minSubVal;
               }
-
               break;
         case bDown:                                                     //Decrement currSubVal inside valid range
               currSubVal -= subValChange;
@@ -580,13 +578,12 @@ int subSwitch2(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
     lastModeSwitch = millis();                          //Reset mode switch reference time
     modeSwitchFlag = true;                              //Trigger mode label reprint 
     holdCycles++;                                       //Increment hold cycles for speed boost
-    return currSubVal;                                  //Pass updated value to previous function. 
     }    
-  }else {                                               //Reset hold cycles if currButton == 0
-    holdCycles = 0;
-    return currSubVal;
   }
-  
+  else {                                               //Reset hold cycles if currButton == 0
+    holdCycles = 0;
+  }
+ return currSubVal;                                  //Pass updated value to previous function. 
 }
 
 
@@ -636,7 +633,7 @@ void threshMain(){
   stPrevLengthADC = stCurrLengthADC;
 
 
-  threshOut = subSwitch2(threshOut, 250, 10);             //Update threshold setting with Up/Down buttons. max value 250, min value 10
+  threshOut = subSwitch2(threshOut, 255, 0);             //Update threshold setting with Up/Down buttons. max value 250, min value 10
 
 /*
     //Check for threshold setting updates
@@ -667,6 +664,7 @@ void threshMain(){
   
     //Prevent label from reprinting until next mode change. 
   modeSwitchFlag = false;
+  return;
 }
 
 
@@ -877,6 +875,8 @@ void periodSub(){
   byte stCurrLength;
   byte static cursorVal;
 
+
+//  currSubMode = subSwitch2(currSubMode, 4, 0);
   
     //Print mode label and set following value cursor position variable if mode has changed. 
   if( modeSwitchFlag == true ){
@@ -1257,7 +1257,6 @@ void subSwitch1(){
 
   
   const byte subModeList[] = {subMin, subMax, subAvg, subModeSampled, subModeTotal};    //List and order of sub modes to cycle with up/down
-
      
   if( currButton != 0 ){
     if( millis() - lastModeSwitch >= modeSwitchDelay){      //Check if minimum switch delay is met for more controlled switching. 
