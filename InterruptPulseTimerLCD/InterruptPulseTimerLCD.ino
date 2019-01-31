@@ -539,6 +539,56 @@ void freqSplash(){
 
 */
 
+
+int subSwitch2(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
+  // Loop through sub modes with buttons. Maintain currSub else. Cycle speed increased once if held 
+    //Button functions: (bUp = Sub++), (bDown = Sub--) 
+    //Takes current sub mode and total number of sub modes from passing function. Returns updated current sub mode. 
+  
+  
+  unsigned int static holdCycles = 0;           //Current count of cycles while button is held
+  int static holdBoost = 0;                     //Number to subtract from modeSwitchDelay. Reduces value change time if conditions met.
+  byte const cyclesBeforeBoost = 30;            //Number of cycles to count before boosted speed begins. 
+                                                  //Time before boost = modeSwitchDelay * cyclesBeforeBoost. 30 = about 5 seconds with 150ms delay.
+
+    //Reset sub switch cycle count to 0. Returns debounce speed to modeSwitchDelay setting. 
+  if (currButton == 0){
+    holdCycles = 0;
+  }
+
+    //Sets holdBoost to 1/2 modeSwitchDelay. Doubles speed of mode value changes if button is held. 
+  if (holdCycles >= cyclesBeforeBoost ){
+    holdBoost = modeSwitchDelay >> 1;             //Bitshift right 1 is equivalent to divide by 2 for integer data types, but much faster. 
+  }  
+
+    //Check button state and if minimum switch delay. Update value change control variables. 
+  if( currButton != 0 ){
+    if( millis() - lastModeSwitch >= modeSwitchDelay - holdBoost ){     //Check if minimum time has been met for deboucing. 
+      switch (currButton){                                              
+        case bUp:                                                       //Increment currSubVal inside valid range
+              currSubVal++;
+              if ( currSubVal >= maxSubVal ){
+                currSubVal = minSubVal;
+              }
+
+              break;
+        case bDown:                                                     //Decrement currSubVal inside valid range
+              currSubVal--;
+              if ( currSubVal < minSubVal ){
+                currSubVal = maxSubVal;
+              }
+              break;
+      }
+    lastModeSwitch = millis();                          //Reset mode switch reference time
+    modeSwitchFlag = true;                              //Trigger mode label reprint 
+    holdCycles++;                                       //Increment hold cycles for speed boost
+    return currSubVal;                                  //Pass updated value to previous function. 
+    }
+  }
+}
+
+
+
 void threshMain(){
 
   String stCurrPWM;
@@ -1231,52 +1281,6 @@ void subSwitch1(){
 }
   
 
-int subSwitch2(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
-  // Loop through sub modes with buttons. Maintain currSub else. Cycle speed increased once if held 
-    //Button functions: (bUp = Sub++), (bDown = Sub--) 
-    //Takes current sub mode and total number of sub modes from passing function. Returns updated current sub mode. 
-  
-  
-  unsigned int static holdCycles = 0;           //Current count of cycles while button is held
-  int static holdBoost = 0;                     //Number to subtract from modeSwitchDelay. Reduces value change time if conditions met.
-  byte const cyclesBeforeBoost = 30;            //Number of cycles to count before boosted speed begins. 
-                                                  //Time before boost = modeSwitchDelay * cyclesBeforeBoost. 30 = about 5 seconds with 150ms delay.
-
-    //Reset sub switch cycle count to 0. Returns debounce speed to modeSwitchDelay setting. 
-  if (currButton == 0){
-    holdCycles = 0;
-  }
-
-    //Sets holdBoost to 1/2 modeSwitchDelay. Doubles speed of mode value changes if button is held. 
-  if (holdCycles >= cyclesBeforeBoost ){
-    holdBoost = modeSwitchDelay >> 1;             //Bitshift right 1 is equivalent to divide by 2 for integer data types, but much faster. 
-  }  
-
-    //Check button state and if minimum switch delay. Update value change control variables. 
-  if( currButton != 0 ){
-    if( millis() - lastModeSwitch >= modeSwitchDelay - holdBoost ){     //Check if minimum time has been met for deboucing. 
-      switch (currButton){                                              
-        case bUp:                                                       //Increment currSubVal inside valid range
-              currSubVal++;
-              if ( currSubVal >= maxSubVal ){
-                currSubVal = minSubVal;
-              }
-
-              break;
-        case bDown:                                                     //Decrement currSubVal inside valid range
-              currSubVal--;
-              if ( currSubVal < minSubVal ){
-                currSubVal = maxSubVal;
-              }
-              break;
-      }
-    lastModeSwitch = millis();                          //Reset mode switch reference time
-    modeSwitchFlag = true;                              //Trigger mode label reprint 
-    holdCycles++;                                       //Increment hold cycles for speed boost
-    return currSubVal;                                  //Pass updated value to previous function. 
-    }
-  }
-}
 
 
 void modeUpdate(){
