@@ -85,7 +85,7 @@ const byte analogWavePin = A0;                         //Analog wave sense pin
 
 
   //Delays for mode changes and status updates
-const int modeSwitchDelay = 150;                    // Min millis between menu changes.
+const unsigned int modeSwitchDelay = 150;                    // Min millis between menu changes.
 //const int modeSplashDelay = 1300;                   // Max millis to display mode config information on mode switch.
 //const long modeSplashMax = 180000;                  // Max millis total run time to allow splash to display on mode switch. 
 const int offResetDelay = 10000;                    // Delay millis to hold data on screen before displaying OFF message.
@@ -547,33 +547,31 @@ int subSwitch2(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
   
   
   unsigned int static holdCycles = 0;           //Current count of cycles while button is held
-  int static holdBoost = 0;                     //Number to subtract from modeSwitchDelay. Reduces value change time if conditions met.
+  byte static subValChange = 1;                 //Number to increment/decrement subVal. Increases if hold cycle check passes. 
   byte const cyclesBeforeBoost = 30;            //Number of cycles to count before boosted speed begins. 
                                                   //Time before boost = modeSwitchDelay * cyclesBeforeBoost. 30 = about 5 seconds with 150ms delay.
 
-    //Reset sub switch cycle count to 0. Returns debounce speed to modeSwitchDelay setting. 
-  if (currButton == 0){
-    holdCycles = 0;
+    //Set subValChange based on hold cycle count. Increases value change speed if button is held. 
+  if (holdCycles > cyclesBeforeBoost ){
+    subValChange = 10;
+  }
+  else {
+    subValChange = 1;
   }
 
-    //Sets holdBoost to 1/2 modeSwitchDelay. Doubles speed of mode value changes if button is held. 
-  if (holdCycles >= cyclesBeforeBoost ){
-    holdBoost = modeSwitchDelay >> 1;             //Bitshift right 1 is equivalent to divide by 2 for integer data types, but much faster. 
-  }  
-
-    //Check button state and if minimum switch delay. Update value change control variables. 
+    //Check button state and if minimum switch delay. Update change control variables if button pressed. Reset hold cycle count else. 
   if( currButton != 0 ){
-    if( millis() - lastModeSwitch >= modeSwitchDelay - holdBoost ){     //Check if minimum time has been met for deboucing. 
+    if( millis() - lastModeSwitch > modeSwitchDelay ){     //Check if minimum time has been met for deboucing. 
       switch (currButton){                                              
         case bUp:                                                       //Increment currSubVal inside valid range
-              currSubVal++;
-              if ( currSubVal >= maxSubVal ){
+              currSubVal += subValChange;
+              if ( currSubVal > maxSubVal ){
                 currSubVal = minSubVal;
               }
 
               break;
         case bDown:                                                     //Decrement currSubVal inside valid range
-              currSubVal--;
+              currSubVal -= subValChange;
               if ( currSubVal < minSubVal ){
                 currSubVal = maxSubVal;
               }
@@ -583,8 +581,12 @@ int subSwitch2(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
     modeSwitchFlag = true;                              //Trigger mode label reprint 
     holdCycles++;                                       //Increment hold cycles for speed boost
     return currSubVal;                                  //Pass updated value to previous function. 
-    }
+    }    
+  }else {                                               //Reset hold cycles if currButton == 0
+    holdCycles = 0;
+    return currSubVal;
   }
+  
 }
 
 
