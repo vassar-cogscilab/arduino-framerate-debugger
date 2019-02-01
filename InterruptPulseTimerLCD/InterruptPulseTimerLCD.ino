@@ -71,11 +71,11 @@ const byte mainPeriod = 2;                                                      
 const byte mainFreq = 3;                                                              //Frequency measurement mode 
 const byte mainDuty = 4;                                                              //Duty cycle measurement mode   
 int static currSubMode = 3;                                                         //Store current sub mode. (Value sets boot default)
-const byte subMin = 0;                                                                //Display Min value
-const byte subMax = 1;                                                                //Display Max value
-const byte subAvg = 2;                                                                //Display Average value
-const byte subModeSampled = 3;                                                        //Display Samples captured in ISRwaveCalc().
-const byte subModeTotal = 4;                                                          //Display Total updates since start
+const byte subMin = 0;                                                                //Display min value
+const byte subMax = 1;                                                                //Display max value
+const byte subAvg = 2;                                                                //Display average value
+const byte subModeTotal = 3;                                                          //Display total successful ISR updates since reset
+const byte subModeErrors = 4;                                                         //Display total errors detected in ISRs since reset
 
   //Tells mode functions to print mode label to reduce unnecessary lcd writes. Must start TRUE
 bool static modeSwitchFlag = true;                                                                                                                                        //For reducing unnecessary lcd print cycles. 
@@ -716,13 +716,13 @@ void ppfdSub(byte currModeVal, byte deciSub){
             lcd.print("Avg:            ");
             cursorSub = 4;
             break;
-      case subModeSampled:
-            lcd.print("Samples:        ");
-            cursorSub = 8;
-            break;
       case subModeTotal:
             lcd.print("Total:          ");
             cursorSub = 6;
+            break;
+      case subModeErrors:
+            lcd.print("Errors:         ");
+            cursorSub = 7;
             break;  
     }
     
@@ -751,11 +751,11 @@ void ppfdSub(byte currModeVal, byte deciSub){
     case subAvg:
           stSubVal = String(ISRwaveData[currModeVal][xAvg], deciSub);
           break;
-    case subModeSampled:
-          stSubVal = String(sampleCounts);
-          break;
     case subModeTotal:
           stSubVal = String(totalCounts);
+          break;
+    case subModeErrors:
+          stSubVal = String(waveErrorCount);
           break;  
   }
 
