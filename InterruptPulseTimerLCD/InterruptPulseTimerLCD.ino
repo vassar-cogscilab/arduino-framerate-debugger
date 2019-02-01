@@ -63,12 +63,7 @@ unsigned long static analogUpdateCount = 0;
   //Storage for current interface mode. 
   //Updated in: modeSwitch()
   //Used in: modeSwitch(), modeLaunch(), phaseMain(), periodMain()
-int static currMainMode = 1;                                                        //Store current main mode. 
-const byte mainThresh = 0;                                                            //Threshold setting and signal min/max measurement
-const byte mainPhase = 1;                                                             //Phase measurement mode
-const byte mainPeriod = 2;                                                            //Period measurement mode
-const byte mainFreq = 3;                                                              //Frequency measurement mode 
-const byte mainDuty = 4;                                                              //Duty cycle measurement mode   
+
 
 
   //Tells mode functions to print mode label to reduce unnecessary lcd writes. Must start TRUE
@@ -712,18 +707,29 @@ void ppfdSub(byte currModeVal, byte deciSub){
   
 }
 
+
 void modeSwitch(){
   // Loop through modes or reset wave stats with buttons. Clear display after any button press. Maintain currMainMode else. 
     //Button functions: (bRight = Main++), (bLeft = Main--), (bSelect = Reset stats). 
+
+    //Mode switch control variables.
+  int static currMainMode = 1;                                                          //Store current main mode.
+  const byte maxMainVal = 4;                                                            //Total number of modes (zero referenced) 
+ 
+    //Mode list. Values set rotation order. ***Must be zero referenced and sequential*** 
+  const byte mainThresh = 0;                                                            //Threshold setting and signal min/max measurement
+  const byte mainPhase = 1;                                                             //Phase measurement mode
+  const byte mainPeriod = 2;                                                            //Period measurement mode
+  const byte mainFreq = 3;                                                              //Frequency measurement mode 
+  const byte mainDuty = 4;                                                              //Duty cycle measurement mode
+
                                                    
-  const byte mainModeList[] = {mainThresh, mainPhase, mainPeriod, mainFreq, mainDuty};            //List and order of main modes to cycle with left/right
-      
   if( currButton != 0 ){
     if( millis() - lastModeSwitch >= modeSwitchDelay){      //Check if minimum switch delay is met for more controlled switching. 
       switch (currButton){
         case bRight:
               currMainMode++ ;
-              if ( currMainMode > (sizeof(mainModeList) - 1) ){
+              if ( currMainMode > maxMainVal) {
                 currMainMode = 0;
               }
               lastModeSwitch = millis();                          //Reset mode switch reference time
@@ -733,7 +739,7 @@ void modeSwitch(){
         case bLeft:
               currMainMode-- ;                
               if (currMainMode < 0){
-                currMainMode = (sizeof(mainModeList) - 1);
+                currMainMode = maxMainVal;
               }
               lastModeSwitch = millis();                          //Reset mode switch reference time
               lcd.clear();                                        //Clear display
@@ -746,7 +752,6 @@ void modeSwitch(){
               modeSwitchFlag = true;                              //Trigger mode label reprint  
               break;
       }
-    currMainMode = mainModeList[currMainMode];          //Set main mode changes
     }
   }
 
