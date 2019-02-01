@@ -374,7 +374,7 @@ void buttonCheck() {
 }
 
 
-int subSwitch2(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
+int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
   // Loop through sub modes with buttons. Maintain currSub else. Cycle speed increased once if held 
     //Button functions: (bUp = Sub++), (bDown = Sub--) 
     //Takes current sub mode and total number of sub modes from passing function. Returns updated current sub mode. 
@@ -382,19 +382,22 @@ int subSwitch2(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
   
   unsigned int static holdCycles = 0;           //Current count of cycles while button is held
   byte static subValChange = 1;                 //Number to increment/decrement subVal. Increases if hold cycle check passes. 
-  byte const cyclesBeforeBoost = 30;            //Number of cycles to count before boosted speed begins. 
+  byte const cyclesBeforeBoost = 25;            //Number of cycles to count before boosted speed begins. 
   
   
-    //Set subValChange based on hold cycle count. Increases value change speed if button is held. 
-  if (holdCycles > cyclesBeforeBoost ){
-    subValChange = 10;
-  }
-  else {
-    subValChange = 1;
-  }
 
-    //Check button state and if minimum switch delay. Update change control variables if button pressed. Reset hold cycle count else. 
+
+    //Check button state and update control variables.
   if( currButton != 0 ){
+
+       //Set subValChange based on hold cycle count. Increases value change speed if button is held. 
+    if (holdCycles > cyclesBeforeBoost ){
+      subValChange = 10;
+    }else {
+      subValChange = 1;
+    }
+
+       //Check if minimum switch delay and update control variables. Reset hold cycle count else.
     if( millis() - lastModeSwitch > modeSwitchDelay ){     //Check if minimum time has been met for deboucing. 
       switch (currButton){                                              
         case bUp:                                                       //Increment currSubVal inside valid range
@@ -414,10 +417,10 @@ int subSwitch2(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
     modeSwitchFlag = true;                              //Trigger mode label reprint 
     holdCycles++;                                       //Increment hold cycles for speed boost
     }    
-  }
-  else {                                               //Reset hold cycles if currButton == 0
+  }else {                                               //Reset hold cycles if currButton == 0
     holdCycles = 0;
   }
+  
  return currSubVal;                                  //Pass updated value to previous function. 
 }
 
@@ -467,7 +470,7 @@ void threshMain(){
   stPrevLengthADC = stCurrLengthADC;
 
 
-  threshOut = subSwitch2(threshOut, 255, 0);             //Update threshold setting with Up/Down buttons. max value 250, min value 10
+  threshOut = subSwitch(threshOut, 255, 0);             //Update threshold setting with Up/Down buttons. max value 250, min value 10
 
 /*
     //Check for threshold setting updates
@@ -614,7 +617,7 @@ void ppfdSub(byte currModeVal, byte deciSub){
     totalCounts = wavePeriodLive[4];
   }
 
-  currSubMode = subSwitch2(currSubMode, 4, 0);
+  currSubMode = subSwitch(currSubMode, 4, 0);
   
     //Print mode label and set following value cursor position variable if mode has changed. 
   if( modeSwitchFlag == true ){
