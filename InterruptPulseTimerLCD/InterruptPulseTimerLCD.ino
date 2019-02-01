@@ -45,6 +45,9 @@ float static ISRwaveData[4][4];                                             //xP
                                                                             //xPeriod   {     ,     ,     ,     }
                                                                             //xFreq     {     ,     ,     ,     }
                                                                             //xDuty     {     ,     ,     ,     }
+    //Tracks sample counts and Sums for average values.
+unsigned long static phaseUpdateCount;                             //Running total of phase updates for calculating average. Also used in waveStartISR() to check for recent reset. 
+unsigned long static periodUpdateCount;                                     //Running total of period updates for calculating average
     //Tracks wave update state in ISRwaveCalc() to update display.
 byte static waveStatus = 0;                                                 //0=Extended LOW, 1=Extended HIGH, 2=Recent Phase update
 
@@ -242,7 +245,8 @@ void ISRwaveCalc(){
       //Calculate average millis
     ISRwaveData[xPhase][xAvg] /= waveMicrosCopy[4];                   //Phase avg = total millis / total counts
 
-      //Update status. 
+      //Update status and refresh counts. 
+    phaseUpdateCount ++;                                       //Update total calculation cycles
     lastPhaseUpdate = millis();                                //Update time for wave status setting. 
     waveStatus = 2;                                            //Set wave status to active current readout
     phaseUpdateFlag = false;                                   //Clear update flag.
@@ -300,6 +304,8 @@ void ISRwaveCalc(){
     }
     
 
+      //Update period refresh count
+    periodUpdateCount++;                      //Update total calculation cycles
     periodUpdateFlag = false;                 //Clear update flag.
   }
 
@@ -352,6 +358,9 @@ void waveReset(){
     ISRwaveData[i][xAvg] = 0.00;
   }
   
+  phaseUpdateCount = 0;
+  periodUpdateCount = 0;
+
 }
 
    
@@ -677,12 +686,15 @@ void ppfdSub(byte currModeVal, byte deciSub){
   String stSubVal;
   byte stSubLength;
   byte static cursorSub;
+  unsigned long sampleCounts;
   unsigned long totalCounts;
 
   if (currMainMode == mainPhase){
+    sampleCounts = phaseUpdateCount;
     totalCounts = wavePhaseLive[4];
   }
   else{
+    sampleCounts = periodUpdateCount;
     totalCounts = wavePeriodLive[4];
   }
 
