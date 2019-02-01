@@ -385,65 +385,6 @@ void buttonCheck() {
 }
 
 
-void modeSwitch(){
-  // Loop through modes or reset wave stats with buttons. Clear display after any button press. Maintain currMainMode else. 
-    //Button functions: (bRight = Main++), (bLeft = Main--), (bSelect = Reset stats). 
-                                                   
-  const byte mainModeList[] = {mainThresh, mainPhase, mainPeriod, mainFreq, mainDuty};            //List and order of main modes to cycle with left/right
-      
-  if( currButton != 0 ){
-    if( millis() - lastModeSwitch >= modeSwitchDelay){      //Check if minimum switch delay is met for more controlled switching. 
-      switch (currButton){
-        case bRight:
-              currMainMode++ ;
-              if ( currMainMode > (sizeof(mainModeList) - 1) ){
-                currMainMode = 0;
-              }
-              lastModeSwitch = millis();                          //Reset mode switch reference time
-              lcd.clear();                                        //Clear display
-              modeSwitchFlag = true;                              //Trigger mode label reprint  
-              break;
-        case bLeft:
-              currMainMode-- ;                
-              if (currMainMode < 0){
-                currMainMode = (sizeof(mainModeList) - 1);
-              }
-              lastModeSwitch = millis();                          //Reset mode switch reference time
-              lcd.clear();                                        //Clear display
-              modeSwitchFlag = true;                              //Trigger mode label reprint  
-              break;
-        case bSelect:
-              waveReset();
-              lastModeSwitch = millis();                          //Reset mode switch reference time
-              lcd.clear();                                        //Clear display
-              modeSwitchFlag = true;                              //Trigger mode label reprint  
-              break;
-      }
-    currMainMode = mainModeList[currMainMode];          //Set main mode changes
-    }
-  }
-
- 
-    //Begin function associated with main mode number. Run splash display for set hold time, clear after. 
-  switch (currMainMode){
-    case mainThresh:
-          threshMain();
-          break;
-    case mainPhase:
-          ppfdMain();
-          break;
-    case mainPeriod:
-          ppfdMain();
-          break;
-    case mainFreq:
-          ppfdMain();
-          break;
-    case mainDuty:
-          ppfdMain();
-          break;
-  }
-  return;
-}
 
 
 int subSwitch2(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
@@ -574,7 +515,7 @@ void threshMain(){
 }
 
 
-void ppfdMain(){
+void ppfdMain(byte modeReq = 0){
   //Phase, Period, Frequency, and Duty modes top print line display settings
 
     //Store previous and current value string lengths. For clearing field if length reduces. 
@@ -591,8 +532,8 @@ void ppfdMain(){
     //Print mode label if mode has changed.  Set in modeSwitch(). reset in sub mode function after full print completed. 
   if(modeSwitchFlag == true){
 
-    switch (currMainMode){
-      case mainPhase:
+    switch (modeReq){
+      case 0:
             lcd.setCursor(0,0);
             lcd.print("Phase mS:");
             cursorMain = 9;
@@ -600,7 +541,7 @@ void ppfdMain(){
             deciSub = 3;
             currModeVal = xPhase;
             break;
-      case mainPeriod:
+      case 1:
             lcd.setCursor(0,0);
             lcd.print("Period mS:");
             cursorMain = 10;
@@ -608,7 +549,7 @@ void ppfdMain(){
             deciSub = 3;
             currModeVal = xPeriod;
             break;
-      case mainFreq:
+      case 2:
             lcd.setCursor(0,0);
             lcd.print("Freq. Hz:");
             cursorMain = 9;
@@ -616,21 +557,13 @@ void ppfdMain(){
             deciSub = 0;
             currModeVal = xFreq;
             break;
-      case mainDuty:
+      case 3:
             lcd.setCursor(0,0);
             lcd.print("+Duty %:");
             cursorMain = 8;
             deciMain = 1;
             deciSub = 1;
             currModeVal = xDuty;
-            break;
-      default:
-            lcd.setCursor(0,0);
-            lcd.print("Phase mS:");
-            cursorMain = 9;
-            deciMain = 2;
-            deciSub = 3;
-            currModeVal = xPhase;
             break;
     }
   }
@@ -688,7 +621,7 @@ void ppfdSub(byte currModeVal, byte deciSub){
   unsigned long sampleCounts;
   unsigned long totalCounts;
 
-  if (currMainMode == mainPhase){
+  if (currModeVal == xPhase){
     totalCounts = wavePhaseLive[4];
   }
   else{
@@ -778,6 +711,68 @@ void ppfdSub(byte currModeVal, byte deciSub){
   return;
   
 }
+
+void modeSwitch(){
+  // Loop through modes or reset wave stats with buttons. Clear display after any button press. Maintain currMainMode else. 
+    //Button functions: (bRight = Main++), (bLeft = Main--), (bSelect = Reset stats). 
+                                                   
+  const byte mainModeList[] = {mainThresh, mainPhase, mainPeriod, mainFreq, mainDuty};            //List and order of main modes to cycle with left/right
+      
+  if( currButton != 0 ){
+    if( millis() - lastModeSwitch >= modeSwitchDelay){      //Check if minimum switch delay is met for more controlled switching. 
+      switch (currButton){
+        case bRight:
+              currMainMode++ ;
+              if ( currMainMode > (sizeof(mainModeList) - 1) ){
+                currMainMode = 0;
+              }
+              lastModeSwitch = millis();                          //Reset mode switch reference time
+              lcd.clear();                                        //Clear display
+              modeSwitchFlag = true;                              //Trigger mode label reprint  
+              break;
+        case bLeft:
+              currMainMode-- ;                
+              if (currMainMode < 0){
+                currMainMode = (sizeof(mainModeList) - 1);
+              }
+              lastModeSwitch = millis();                          //Reset mode switch reference time
+              lcd.clear();                                        //Clear display
+              modeSwitchFlag = true;                              //Trigger mode label reprint  
+              break;
+        case bSelect:
+              waveReset();
+              lastModeSwitch = millis();                          //Reset mode switch reference time
+              lcd.clear();                                        //Clear display
+              modeSwitchFlag = true;                              //Trigger mode label reprint  
+              break;
+      }
+    currMainMode = mainModeList[currMainMode];          //Set main mode changes
+    }
+  }
+
+ 
+    //Begin function associated with main mode number. Run splash display for set hold time, clear after. 
+  switch (currMainMode){
+    case mainThresh:
+          threshMain();
+          break;
+    case mainPhase:
+          ppfdMain(0);
+          break;
+    case mainPeriod:
+          ppfdMain(1);
+          break;
+    case mainFreq:
+          ppfdMain(2);
+          break;
+    case mainDuty:
+          ppfdMain(3);
+          break;
+  }
+  return;
+}
+
+
 
 /*
  * 
