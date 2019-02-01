@@ -64,7 +64,12 @@ unsigned long static analogUpdateCount = 0;
   //Storage for current interface mode. 
   //Updated in: modeSwitch()
   //Used in: modeSwitch(), modeLaunch(), phaseMain(), periodMain()
-
+int static currMainMode = 1;                                                        //Store current main mode. 
+const byte mainThresh = 0;                                                            //Threshold setting and signal min/max measurement
+const byte mainPhase = 1;                                                             //Phase measurement mode
+const byte mainPeriod = 2;                                                            //Period measurement mode
+const byte mainFreq = 3;                                                              //Frequency measurement mode 
+const byte mainDuty = 4;                                                              //Duty cycle measurement mode   
 int static currSubMode = 3;                                                         //Store current sub mode. (Value sets boot default)
 const byte subMin = 0;                                                                //Display Min value
 const byte subMax = 1;                                                                //Display Max value
@@ -391,13 +396,7 @@ void buttonCheck() {
 void modeSwitch(){
   // Loop through modes or reset wave stats with buttons. Clear display after any button press. Maintain currMainMode else. 
     //Button functions: (bRight = Main++), (bLeft = Main--), (bSelect = Reset stats). 
-
-  int static currMainMode = 1;                                                        //Store current main mode. 
-  const byte mainThresh = 0;                                                            //Threshold setting and signal min/max measurement
-  const byte mainPhase = 1;                                                             //Phase measurement mode
-  const byte mainPeriod = 2;                                                            //Period measurement mode
-  const byte mainFreq = 3;                                                              //Frequency measurement mode 
-  const byte mainDuty = 4;                                                              //Duty cycle measurement mode                                                      
+                                                   
   const byte mainModeList[] = {mainThresh, mainPhase, mainPeriod, mainFreq, mainDuty};            //List and order of main modes to cycle with left/right
       
   if( currButton != 0 ){
@@ -408,18 +407,24 @@ void modeSwitch(){
               if ( currMainMode > (sizeof(mainModeList) - 1) ){
                 currMainMode = 0;
               }
-              modeUpdate();
+              lastModeSwitch = millis();                          //Reset mode switch reference time
+              lcd.clear();                                        //Clear display
+              modeSwitchFlag = true;                              //Trigger mode label reprint  
               break;
         case bLeft:
               currMainMode-- ;                
               if (currMainMode < 0){
                 currMainMode = (sizeof(mainModeList) - 1);
               }
-              modeUpdate();
+              lastModeSwitch = millis();                          //Reset mode switch reference time
+              lcd.clear();                                        //Clear display
+              modeSwitchFlag = true;                              //Trigger mode label reprint  
               break;
         case bSelect:
-              modeUpdate();
               waveReset();
+              lastModeSwitch = millis();                          //Reset mode switch reference time
+              lcd.clear();                                        //Clear display
+              modeSwitchFlag = true;                              //Trigger mode label reprint  
               break;
       }
     currMainMode = mainModeList[currMainMode];          //Set main mode changes
@@ -476,16 +481,16 @@ void modeSwitch(){
           threshMain();
           break;
     case mainPhase:
-          phaseMain();
+          ppfdMain();
           break;
     case mainPeriod:
-          periodMain();
+          ppfdMain();
           break;
     case mainFreq:
-          freqMain();
+          ppfdMain();
           break;
     case mainDuty:
-          dutyMain();
+          ppfdMain();
           break;
   }
   return;
@@ -667,7 +672,7 @@ void threshMain(){
   return;
 }
 
-
+/*
 
 void phaseMain(){
   //Phase mode top print line display settings
@@ -728,7 +733,7 @@ void phaseSub(){
   byte static stPrevLength = 0;
   String stCurrVal;
   byte stCurrLength;
-  byte static cursorVal;
+  byte static cursorSub;
 
   
     //Print mode label and set following value cursor position variable if mode has changed. 
@@ -737,23 +742,23 @@ void phaseSub(){
     switch (currSubMode){
       case subMin:
             lcd.print("Min:");
-            cursorVal = 4;        
+            cursorSub = 4;        
             break;
       case subMax:
             lcd.print("Max:");
-            cursorVal = 4;
+            cursorSub = 4;
             break;
       case subAvg:
             lcd.print("Avg:");
-            cursorVal = 4;
+            cursorSub = 4;
             break;
       case subModeSampled:
             lcd.print("Samples:");
-            cursorVal = 8;
+            cursorSub = 8;
             break;
       case subModeTotal:
             lcd.print("Total:");
-            cursorVal = 6;
+            cursorSub = 6;
             break;  
     }
     
@@ -795,12 +800,12 @@ void phaseSub(){
     //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
   stCurrLength = stCurrVal.length();
   if(stCurrLength < stPrevLength){
-    lcd.setCursor(cursorVal, 1);
+    lcd.setCursor(cursorSub, 1);
     lcd.print("            ");
   }
 
     //Set cursor to match mode label. Print value. 
-  lcd.setCursor(cursorVal, 1);
+  lcd.setCursor(cursorSub, 1);
   lcd.print(stCurrVal);
 
     //Update previous string length for next cycle. 
@@ -822,8 +827,8 @@ void periodMain(){
   String stCurrVal;
   byte stCurrLength;
 
-    //Check for sub mode updates and screen clear flags. 
-  subSwitch1();
+//    //Check for sub mode updates and screen clear flags. 
+//  subSwitch1();
 
     //Print mode label if mode has changed.  Set in modeSwitch(). reset in sub mode function after full print completed. 
   if(modeSwitchFlag == true){
@@ -873,34 +878,34 @@ void periodSub(){
   byte static stPrevLength = 0;
   String stCurrVal;
   byte stCurrLength;
-  byte static cursorVal;
+  byte static cursorSub;
 
 
-//  currSubMode = subSwitch2(currSubMode, 4, 0);
+  currSubMode = subSwitch2(currSubMode, 4, 0);
   
     //Print mode label and set following value cursor position variable if mode has changed. 
   if( modeSwitchFlag == true ){
     lcd.setCursor(0,1);
     switch (currSubMode){
       case subMin:
-            lcd.print("Min:");
-            cursorVal = 4;        
+            lcd.print("Min:            ");
+            cursorSub = 4;        
             break;
       case subMax:
-            lcd.print("Max:");
-            cursorVal = 4;
+            lcd.print("Max:            ");
+            cursorSub = 4;
             break;
       case subAvg:
-            lcd.print("Avg:");
-            cursorVal = 4;
+            lcd.print("Avg:            ");
+            cursorSub = 4;
             break;
       case subModeSampled:
-            lcd.print("Samples:");
-            cursorVal = 8;
+            lcd.print("Samples:        ");
+            cursorSub = 8;
             break;
       case subModeTotal:
-            lcd.print("Total:");
-            cursorVal = 6;
+            lcd.print("Total:          ");
+            cursorSub = 6;
             break;  
     }
     
@@ -942,12 +947,12 @@ void periodSub(){
     //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
   stCurrLength = stCurrVal.length();
   if(stCurrLength < stPrevLength){
-    lcd.setCursor(cursorVal, 1);
+    lcd.setCursor(cursorSub, 1);
     lcd.print("            ");
   }
 
     //Set cursor to match mode label. Print value. 
-  lcd.setCursor(cursorVal, 1);
+  lcd.setCursor(cursorSub, 1);
   lcd.print(stCurrVal);
 
     //Update previous string length for next cycle. 
@@ -1020,7 +1025,7 @@ void freqSub(){
   byte static stPrevLength = 0;
   String stCurrVal;
   byte stCurrLength;
-  byte static cursorVal;
+  byte static cursorSub;
 
   
     //Print mode label and set following value cursor position variable if mode has changed. 
@@ -1029,23 +1034,23 @@ void freqSub(){
     switch (currSubMode){
       case subMin:
             lcd.print("Min:");
-            cursorVal = 4;        
+            cursorSub = 4;        
             break;
       case subMax:
             lcd.print("Max:");
-            cursorVal = 4;
+            cursorSub = 4;
             break;
       case subAvg:
             lcd.print("Avg:");
-            cursorVal = 4;
+            cursorSub = 4;
             break;
       case subModeSampled:
             lcd.print("Samples:");
-            cursorVal = 8;
+            cursorSub = 8;
             break;
       case subModeTotal:
             lcd.print("Total:");
-            cursorVal = 6;
+            cursorSub = 6;
             break;  
     }
     
@@ -1087,12 +1092,12 @@ void freqSub(){
     //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
   stCurrLength = stCurrVal.length();
   if(stCurrLength < stPrevLength){
-    lcd.setCursor(cursorVal, 1);
+    lcd.setCursor(cursorSub, 1);
     lcd.print("            ");
   }
 
     //Set cursor to match mode label. Print value. 
-  lcd.setCursor(cursorVal, 1);
+  lcd.setCursor(cursorSub, 1);
   lcd.print(stCurrVal);
 
     //Update previous string length for next cycle. 
@@ -1164,7 +1169,7 @@ void dutySub(){
   byte static stPrevLength = 0;
   String stCurrVal;
   byte stCurrLength;
-  byte static cursorVal;
+  byte static cursorSub;
 
   
     //Print mode label and set following value cursor position variable if mode has changed. 
@@ -1173,23 +1178,23 @@ void dutySub(){
     switch (currSubMode){
       case subMin:
             lcd.print("Min:");
-            cursorVal = 4;        
+            cursorSub = 4;        
             break;
       case subMax:
             lcd.print("Max:");
-            cursorVal = 4;
+            cursorSub = 4;
             break;
       case subAvg:
             lcd.print("Avg:");
-            cursorVal = 4;
+            cursorSub = 4;
             break;
       case subModeSampled:
             lcd.print("Samples:");
-            cursorVal = 8;
+            cursorSub = 8;
             break;
       case subModeTotal:
             lcd.print("Total:");
-            cursorVal = 6;
+            cursorSub = 6;
             break;  
     }
     
@@ -1231,12 +1236,12 @@ void dutySub(){
     //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
   stCurrLength = stCurrVal.length();
   if(stCurrLength < stPrevLength){
-    lcd.setCursor(cursorVal, 1);
+    lcd.setCursor(cursorSub, 1);
     lcd.print("            ");
   }
 
     //Set cursor to match mode label. Print value. 
-  lcd.setCursor(cursorVal, 1);
+  lcd.setCursor(cursorSub, 1);
   lcd.print(stCurrVal);
 
     //Update previous string length for next cycle. 
@@ -1282,17 +1287,208 @@ void subSwitch1(){
 }
   
 
+*/
 
 
-void modeUpdate(){
-  //For update time for switch debouncing, clear display, and set flag for proper display. 
+void ppfdMain(){
+  //Phase, Period, Frequency, and Duty modes top print line display settings
 
-  lastModeSwitch = millis();                          //Reset mode switch reference time
-  lcd.clear();                                        //Clear display
-  modeSwitchFlag = true;                              //Trigger mode label reprint
+    //Store previous and current value string lengths. For clearing field if length reduces. 
+  byte static stPrevMainLength = 0;
+  String stMainVal;
+  byte stMainLength;
+  byte static cursorMain;
+  byte static deciMain;
+  byte static deciSub;
+  byte static currModeVal;
+  
+
+  
+    //Print mode label if mode has changed.  Set in modeSwitch(). reset in sub mode function after full print completed. 
+  if(modeSwitchFlag == true){
+
+    switch (currMainMode){
+      case mainPhase:
+            lcd.setCursor(0,0);
+            lcd.print("Phase mS:");
+            cursorMain = 9;
+            deciMain = 2;
+            deciSub = 3;
+            currModeVal = xPhase;
+            break;
+      case mainPeriod:
+            lcd.setCursor(0,0);
+            lcd.print("Period mS:");
+            cursorMain = 10;
+            deciMain = 2;
+            deciSub = 3;
+            currModeVal = xPeriod;
+            break;
+      case mainFreq:
+            lcd.setCursor(0,0);
+            lcd.print("Freq. Hz:");
+            cursorMain = 9;
+            deciMain = 0;
+            deciSub = 0;
+            currModeVal = xFreq;
+            break;
+      case mainDuty:
+            lcd.setCursor(0,0);
+            lcd.print("+Duty %:");
+            cursorMain = 8;
+            deciMain = 1;
+            deciSub = 1;
+            currModeVal = xDuty;
+            break;
+      default:
+            lcd.setCursor(0,0);
+            lcd.print("Phase mS:");
+            cursorMain = 9;
+            deciMain = 2;
+            deciSub = 3;
+            currModeVal = xPhase;
+            break;
+    }
+  }
+
+    //Set main value string based on current waveStatus (set in ISRwaveCalc())
+  switch (waveStatus){
+    case 0:
+          stMainVal = "_LOW_";
+          break;
+    case 1:
+          stMainVal = "-HIGH-";
+          break;
+    default: 
+          stMainVal = String(ISRwaveData[currModeVal][xVal], deciMain);
+          break; 
+  }
+
+
+    //Update current value string length. Clear value display if character length decreased. 
+    //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
+  stMainLength = stMainVal.length();
+  if ( stMainLength < stPrevMainLength ){
+    lcd.setCursor(cursorMain,0);
+    lcd.print("        ");
+  }
+
+
+    //Print value string
+  lcd.setCursor(cursorMain,0);
+  lcd.print(stMainVal);
+
+    //Save current string length for comparision on next loop. 
+  stPrevMainLength = stMainLength;  
+
+
+  ppfdSub(currModeVal, deciSub);
+  
 }
 
 
+void ppfdSub(byte currModeVal, byte deciSub){
+  //Phase, Period, Frequency, and Duty modes bottom print line display settings
+
+  byte static stPrevSubLength = 0;
+  String stSubVal;
+  byte stSubLength;
+  byte static cursorSub;
+  unsigned long sampleCounts;
+  unsigned long totalCounts;
+
+  if (currMainMode == mainPhase){
+    sampleCounts = phaseUpdateCount;
+    totalCounts = wavePhaseLive[4];
+  }
+  else{
+    sampleCounts = periodUpdateCount;
+    totalCounts = wavePeriodLive[4];
+  }
+
+  currSubMode = subSwitch2(currSubMode, 4, 0);
+  
+    //Print mode label and set following value cursor position variable if mode has changed. 
+  if( modeSwitchFlag == true ){
+    lcd.setCursor(0,1);
+    switch (currSubMode){
+      case subMin:
+            lcd.print("Min:            ");
+            cursorSub = 4;        
+            break;
+      case subMax:
+            lcd.print("Max:            ");
+            cursorSub = 4;
+            break;
+      case subAvg:
+            lcd.print("Avg:            ");
+            cursorSub = 4;
+            break;
+      case subModeSampled:
+            lcd.print("Samples:        ");
+            cursorSub = 8;
+            break;
+      case subModeTotal:
+            lcd.print("Total:          ");
+            cursorSub = 6;
+            break;  
+    }
+    
+    
+  }
+
+    //Set string output value based on current sub mode.
+      //String set to "0" for Min and Max if no updates have been completed to prevent string length overflow from max pos/neg float values. 
+  switch (currSubMode){
+    case subMin:
+          if (waveResetFlag == false){
+            stSubVal = String(ISRwaveData[currModeVal][xMin], deciSub);
+          }
+          else{
+            stSubVal = "0";
+          }
+          break;
+    case subMax:
+          if (waveResetFlag == false){
+            stSubVal = String(ISRwaveData[currModeVal][xMax], deciSub);
+          }
+          else{
+            stSubVal = "0";
+          }
+          break;
+    case subAvg:
+          stSubVal = String(ISRwaveData[currModeVal][xAvg], deciSub);
+          break;
+    case subModeSampled:
+          stSubVal = String(sampleCounts);
+          break;
+    case subModeTotal:
+          stSubVal = String(totalCounts);
+          break;  
+  }
+
+
+    //Update current value string length. Clear value display if character length decreased. 
+    //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
+  stSubLength = stSubVal.length();
+  if(stSubLength < stPrevSubLength){
+    lcd.setCursor(cursorSub, 1);
+    lcd.print("            ");
+  }
+
+    //Set cursor to match mode label. Print value. 
+  lcd.setCursor(cursorSub, 1);
+  lcd.print(stSubVal);
+
+    //Update previous string length for next cycle. 
+  stPrevSubLength = stSubLength;
+  
+    //Prevent label from reprinting until next mode change. 
+  modeSwitchFlag = false;                   
+  
+  return;
+  
+}
 
 /*
  * 
