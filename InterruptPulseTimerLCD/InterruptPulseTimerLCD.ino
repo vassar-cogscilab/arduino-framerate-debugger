@@ -50,6 +50,7 @@ unsigned long static phaseUpdateCount;                             //Running tot
 unsigned long static periodUpdateCount;                                     //Running total of period updates for calculating average
     //Tracks wave update state in ISRwaveCalc() to update display.
 byte static waveStatus = 0;                                                 //0=Extended LOW, 1=Extended HIGH, 2=Recent Phase update
+bool static calcUpdateFlag = false;
 
 /*
   //Storage for ADCwave data
@@ -70,12 +71,7 @@ const byte mainPhase = 1;                                                       
 const byte mainPeriod = 2;                                                            //Period measurement mode
 const byte mainFreq = 3;                                                              //Frequency measurement mode 
 const byte mainDuty = 4;                                                              //Duty cycle measurement mode   
-int static currSubMode = 3;                                                         //Store current sub mode. (Value sets boot default)
-const byte subMin = 0;                                                                //Display min value
-const byte subMax = 1;                                                                //Display max value
-const byte subAvg = 2;                                                                //Display average value
-const byte subModeTotal = 3;                                                          //Display total successful ISR updates since reset
-const byte subModeErrors = 4;                                                         //Display total errors detected in ISRs since reset
+
 
   //Tells mode functions to print mode label to reduce unnecessary lcd writes. Must start TRUE
 bool static modeSwitchFlag = true;                                                                                                                                        //For reducing unnecessary lcd print cycles. 
@@ -306,6 +302,7 @@ void ISRwaveCalc(){
 
       //Update period refresh count
     periodUpdateCount++;                      //Update total calculation cycles
+    calcUpdateFlag = true;                    //Set flag for min/max value display updates
     periodUpdateFlag = false;                 //Clear update flag.
   }
 
@@ -353,14 +350,15 @@ void waveReset(){
     //Reset stored float millis data
   for( byte i=0; i<4; i++ ){
     ISRwaveData[i][xVal] = 0.00;
-    ISRwaveData[i][xMin] = 3.4028235E+38;        //Reset min capture data storage to max possible data value.
-    ISRwaveData[i][xMax] = -3.4028235E+38;       //Reset max capture data storage to min possible data value.
+    ISRwaveData[i][xMin] = 3.4028235E+38;                   //Reset min capture data storage to max possible data value.
+    ISRwaveData[i][xMax] = -3.4028235E+38;                  //Reset max capture data storage to min possible data value.
     ISRwaveData[i][xAvg] = 0.00;
   }
-  
+  calcUpdateFlag = false;
   phaseUpdateCount = 0;
   periodUpdateCount = 0;
 
+  return;
 }
 
    
@@ -682,6 +680,13 @@ void ppfdMain(){
 void ppfdSub(byte currModeVal, byte deciSub){
   //Phase, Period, Frequency, and Duty modes bottom print line display settings
 
+  byte static currSubMode = 0;                                                         //Store current sub mode. (Value sets boot default)
+  const byte subMin = 0;                                                                //Display min value
+  const byte subMax = 1;                                                                //Display max value
+  const byte subAvg = 2;                                                                //Display average value
+  const byte subModeTotal = 3;                                                          //Display total successful ISR updates since reset
+  const byte subModeErrors = 4;                                                         //Display total errors detected in ISRs since reset
+
   byte static stPrevSubLength = 0;
   String stSubVal;
   byte stSubLength;
@@ -733,19 +738,19 @@ void ppfdSub(byte currModeVal, byte deciSub){
       //String set to "0" for Min and Max if no updates have been completed to prevent string length overflow from max pos/neg float values. 
   switch (currSubMode){
     case subMin:
-          if (waveResetFlag == false){
-            stSubVal = String(ISRwaveData[currModeVal][xMin], deciSub);
-          }
+          if (calcUpdateFlag == true){
+            stSubVal = String(ISRwaveData[currModeVal][xMin], deciSub);       
+          } 
           else{
             stSubVal = "0";
           }
           break;
     case subMax:
-          if (waveResetFlag == false){
-            stSubVal = String(ISRwaveData[currModeVal][xMax], deciSub);
+          if (calcUpdateFlag == true ){
+            stSubVal = String(ISRwaveData[currModeVal][xMax], deciSub);                  
           }
           else{
-            stSubVal = "0";
+            stSubVal = "0";   
           }
           break;
     case subAvg:
