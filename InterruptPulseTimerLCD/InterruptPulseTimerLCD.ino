@@ -60,11 +60,6 @@ int static ADCwaveToPWM = 0;                                  //Quarter wave hei
 unsigned long static analogUpdateCount = 0;
 */
 
-  //Storage for current interface mode. 
-  //Updated in: modeSwitch()
-  //Used in: modeSwitch(), modeLaunch(), phaseMain(), periodMain()
-
-
 
   //Tells mode functions to print mode label to reduce unnecessary lcd writes. Must start TRUE
 bool static modeSwitchFlag = true;                                                                                                                                        //For reducing unnecessary lcd print cycles. 
@@ -201,8 +196,7 @@ void loop() {
   ISRwaveCalc();              //Update all wave values measured from interrupts.
   buttonCheck();              //Check button state
   modeSwitch();               //Update UI if button state changes.  
-
-        
+      
 }
 
 
@@ -314,19 +308,20 @@ void waveReset(){
   
     //reset live capture values and set reset flag. Disable interrupts to prevent error
   noInterrupts();
-     //Reset live capture Ulong data
-  for( byte i=0; i<5; i++ ){
-    
-    if(i == 1){                               //Reset min capture data storage to max possible data value.
-      wavePeriodLive[1] = 0xFFFFFFFF;
-      wavePhaseLive[1] = 0xFFFFFFFF;
-    } 
-    else {                                    //Clear all other values
-    wavePeriodLive[i] = 0;                    
-    wavePhaseLive[i] = 0;
-    }
-  }
+  
+     //Reset live capture Ulong data. Intentionally verbose to eliminate conditional checks and minimize interrupt down time. 
+  wavePhaseLive[0] = 0;                       //Phase current val
+  wavePhaseLive[1] = 0xFFFFFFFF;              //Phase min val. Set to max possible to insure update
+  wavePhaseLive[2] = 0;                       //Phase max val.
+  wavePhaseLive[3] = 0;                       //Phase running total micros for averaging in ISRwaveCalc()
+  wavePhaseLive[4] = 0;                       //Phase running total updates for averaging in ISRwaveCalc() and total display in ppfdSub()
+  wavePeriodLive[0] = 0;                      //Period current val
+  wavePeriodLive[1] = 0xFFFFFFFF;             //Period min val. Set to max possible to insure update
+  wavePeriodLive[2] = 0;                      //Period max val.
+  wavePeriodLive[3] = 0;                      //Period running total micros for averaging in ISRwaveCalc()
+  wavePeriodLive[4] = 0;                      //Period running total updates for averaging in ISRwaveCalc() and total display in ppfdSub()
 
+    //Reset IRS flags and error counts
   waveResetFlag = true;                       //Set reset flag to prevent period calc updates until second rising edge.
   waveStartFlag = false;                      //Clear rising edge flag
   phaseUpdateFlag = false;                    //Clear phase update flag
@@ -347,7 +342,6 @@ void waveReset(){
   }
   calcUpdateFlag = false;
   
-
 }
 
    
@@ -378,8 +372,6 @@ void buttonCheck() {
   }
 
 }
-
-
 
 
 int subSwitch2(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
@@ -506,7 +498,6 @@ void threshMain(){
   
     //Prevent label from reprinting until next mode change. 
   modeSwitchFlag = false;
-  return;
 }
 
 
@@ -702,8 +693,6 @@ void ppfdSub(byte currModeVal, byte deciSub){
   
     //Prevent label from reprinting until next mode change. 
   modeSwitchFlag = false;                   
-  
-  return;
   
 }
 
