@@ -421,7 +421,7 @@ int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
     holdCycles = 0;
   }
   
- return currSubVal;                                  //Pass updated value to previous function. 
+ return currSubVal;                                     //Pass updated value to previous function. 
 }
 
 
@@ -506,6 +506,7 @@ void threshMain(){
 
 void ppfdMain(byte modeReq = 0){
   //Phase, Period, Frequency, and Duty modes top print line display settings
+  
 
     //Store previous and current value string lengths. For clearing field if length reduces. 
   byte static stPrevMainLength = 0;
@@ -773,69 +774,57 @@ void modeSwitch(){
 
 /*
  * 
- * *****Notes: *********
- * Verify min/max for ISRwaveData can be initialized as 0.00 after updating ISRwaveCalc behavior
- * Add analog wave calc values to reset function
+ * unsigned long volatile frameCount[9] = {0,0,0,0,0,0,0,0,0};                 //{>f-3, f-3, f-2, f-1, f, f+1, f+2, f+3, >f+3}
+ * long volatile frameTarget[2] = {12500, 20832};                               //target frame length upper and lower limits. Default values for 60Hz frame rate. 
+ * long volatile frameUnder[3] = {-4166, -20832, -37498};                       //target -1frame, -2frames, -3frames. lower limits. 
+ * long volatile frameOver[3] = {37489, 54164, 70830};                          //target +1frame, +2frames, +3frames. upper limits. 
  * 
  * 
+ * int frameRate = 60;
+ * int frameCount = 1; 
  * 
- ********** Prototype frame count code: *************
+ * unsigned long frameLength = 1000000/ frameRate
+ * long frameBuffer = frameLength >> 2
  * 
- *  //Counts for given frame count ± target
- * unsigned long volatile frameCount[9]{0,0,0,0,0,0,0,0,0};       // Count totals: {<f-3, f-3, f-2, f-1, f, f+1, f+2, f+3, >f+3}
+ * unsigned lnog frameTargetTemp[2];
+ * unsigned long frameUnderTemp[3];
+ * unsigned long frameOverTemp[3];
  * 
- *  // Length comparisons to target frame count(f). 
- * unsigned long volatile frameLength[8]{0,0,0,0,0,0,0,0};        //{f-3 min, f-3 max, f-2 max, f-1 max, f max, f+1 max, f+2 max, f+3max}  
+ * frameSingleTemp[0] = frameLength - frameBuffer
+ * frameSingleTemp[1] = frameLength + frameBuffer
  * 
- * unsigned int static frameFreq = 60;                    // Store monitor frame rate
- * byte static frameTarget = 1;                           // Store target frame count for comparison
- * 
- * 
- * unsigned long frameSingle = (1/frameFreq)*1000000);    //Convert frameFreq to length in microseconds 
- * unsigned long frameBuffer = (frameSingle * 0.15);      //15% buffer for response time and trigger level tolerance
- * 
- * 
- * 
- *  //Set minimum value for one frame under target. Balanced for worst case with 15% shorter frame and no ISR delay.
- * frameLength[0] = ( frameSingle * (frameTarget - 1) ) - ( frameBuffer);                                                                                                                                                                 
- * 
- * 
- *  // Set maximum value for frames ±1 from target. Balanced for worst case with 15% longer frame and 8uS ISR launch delay. 
- *  
- *  
- * frameLength[1] = ( frameSingle * (frameTarget - 1) ) + frameBuffer + 8;                                                                                
- * frameLength[2] = ( frameSingle * frameTarget )       + frameBuffer + 8;  
- * frameLength[3] = ( frameSingle * (frameTarget + 1) ) + frameBuffer + 8;  
- * 
- * 
- * 
- * if (frameTarget - i) < 0){
- *  frameLength[i] = 0;
- * }else if ( (frameTarget - i) = 0 ){
- *  frameLength[i] = frameSingle - frameBuffer;
- * }else{
- *  frameLength[i] = ( frameSingle * (frameTarget - i) ) + frameBuffer + 8;
- * 
- * if ( i == 
- * 
- * 
- * 
- *  //Increment appropriate frame count. 
- *  //Check target frame conditions first to limit conditional checks if on target. 
- * if ( (wavePeriodLive[0] > frameLength[1]) && (wavePeriodLive[0] <= frameLength[2]) ){      //Between +buffered target-1 and +buffered target
- *  frameCount[2]++;                                                                          //target count++
+ * for (int i = 1, i++, i<4){
+ *   frameUnderTemp[i-1] = frameSingleTemp[0] - (frameLength * i);
  * }
- * else if (wavePeriodLive[0] < frameLength[0]){                                             //Less than -buffered target-1
- *  frameCount[0]++;                                                                          // <-1 target count++ 
+ * 
+ * for (int i = 1, i++, i<4){
+ *   framOverTemp[i-1] = frameSingleTemp[1] + (frameLength * i);
  * }
- * else if (wavePeriodLive[0] <= frameLength[1]){                                            //Between -buffered target-1 and +buffered target-1
- *  frameCount[1]++;                                                                          // -1 target count++
+ *
+ * 
+ * 
+ * if ( (wavePhaseLive[0] > frameTarget[0]) || (wavePhaseLive[0] < frameTarget[1]) ){             //If phase between upper and lower limits of frame target, target count++
+ *   frameCount[4]++;
+ * }else if (wavePhaseLive[0] <= frameTarget[0]) {                                                //If phase >= target lower limit, check frameUnder times
+ *   if(wavePhaseLive[0] > frameUnder[0]){                                                          //If phase > frame-1 lower limit, frame-1++
+ *     frameCount[3]++;
+ *   }else if (wavePhaseLive[0] > frameUnder[1]){                                                   //If phase > frame-2 lower limit, frame-2++
+ *     frameCount[2]++;
+ *   }else if (wavePhaseLive[0] > frameUnder[2]){                                                   //If phase > frame-3 lower limit, frame-3++
+ *     frameCount[1]++;
+ *   }else{                                                                                         //Else phase must be <= frame-3 lower limit, >frame-3++
+ *     frameCount[0]++;
+ * }else if (wavePhaseLive[0] >= frameTarget[1]) {                                                //If phase <= target upper limit, check frameUnder times
+ *   if(wavePhaseLive[0] < frameOver[0]){                                                           //If phase < frame+1 upper limit, frame-1++
+ *     frameCount[5]++;
+ *   }else if (wavePhaseLive[0] < frameOver[1]){                                                    //If phase < frame+2 upper limit, frame-2++
+ *     frameCount[6]++;
+ *   }else if (wavePhaseLive[0] < frameOver[2]){                                                    //If phase < frame+3 upper limit, frame-3++
+ *     frameCount[7]++;
+ *   }else{                                                                                         //Else phase must be >= frame+3 upper limit, >frame-3++
+ *     frameCount[8]++;
  * }
- * else if (wavePeriodLive[0] <= frameLength[3]){                                            //Between +buffered target and +buffered target+1
- *  frameCount[3]++;                                                                          // +1 target count++
- * }
- * else {                                                                                   //Greater than +buffered target+1
- *  frameCount[4]++;                                                                          // >+1 target count++
- * }
+ * 
+ * 
  * 
  */
