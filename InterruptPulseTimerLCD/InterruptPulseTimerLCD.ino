@@ -774,6 +774,8 @@ void modeSwitch(){
 
 /*
  * 
+ *  ***Global variables***
+ * 
  * unsigned long volatile frameCount[9] = {0,0,0,0,0,0,0,0,0};                 //{>f-3, f-3, f-2, f-1, f, f+1, f+2, f+3, >f+3}
  * long volatile frameTarget[2] = {12500, 20832};                               //target frame length upper and lower limits. Default values for 60Hz frame rate. 
  * long volatile frameUnder[3] = {-4166, -20832, -37498};                       //target -1frame, -2frames, -3frames. lower limits. 
@@ -783,27 +785,56 @@ void modeSwitch(){
  * int frameRate = 60;
  * int frameCount = 1; 
  * 
- * unsigned long frameLength = 1000000/ frameRate
- * long frameBuffer = frameLength >> 2
  * 
- * unsigned long frameTargetTemp[2];
- * unsigned long frameUnderTemp[3];
- * unsigned long frameOverTemp[3];
  * 
- * frameSingleTemp[0] = frameLength - frameBuffer
- * frameSingleTemp[1] = frameLength + frameBuffer
+ * **** insert into top of waveReset() above noInterrupts()
  * 
- * for (int i = 1, i++, i<4){
- *   frameUnderTemp[i-1] = frameSingleTemp[0] - (frameLength * i);
+ * unsigned long frameLength = 1000000/ frameRate         //Set target frame phase length in uS. 1/frameRate = frames/Sec. 1000000/frameRate = frames/uS. 
+ * unsigned long frameBuffer = frameLength >> 2           //Buffer is 25% of frame rate. Allows for phase length tolerance from threshold and filter effects. 
+ *                                                           //Bitshift right 2 is equivelant to val/4 in unsigned integer types, but much faster. 
+ * 
+ * unsigned long frameTargetTemp[2];                      //For calculation. Store target frame phase length ±buffer upper and lower limits
+ * unsigned long frameUnderTemp[3];                       //For calculation. Store frame phase length buffered lower limits for f-1 through f-3
+ * unsigned long frameOverTemp[3];                        //For calculation. Store frame phase length buffered upper limits for f+1 through f+3
+ * 
+ * frameTargetTemp[0] = (frameLength * frameCount) - frameBuffer;       //For calculatoin. Set target frame phase length - buffered lower limit
+ * frameTargetTemp[1] = (frameLength * frameCount) + frameBuffer;       //For calculatoin. Set target frame phase length + buffered upper limit
+ * 
+ * for (int i = 1, i++, i<4){                                          //For calculation. Set frame phase length buffered lower limits for f-1 through f-3
+ *   frameUnderTemp[i-1] = frameTargetTemp[0] - (frameLength * i);
  * }
  * 
- * for (int i = 1, i++, i<4){
- *   framOverTemp[i-1] = frameSingleTemp[1] + (frameLength * i);
+ * for (int i = 1, i++, i<4){                                          //For calculation. Set frame phase length buffered upper limits for f+1 through f+3
+ *   framOverTemp[i-1] = fameTargetTemp[1] + (frameLength * i);
  * }
  *
  * 
+ *  *** insert into waveReset() within noInterrupts()
+ *  
+ *    //Update and reset frame comparison values
+ *  frameTarget[0] = frameTargetTemp[0];
+ *  frameTarget[1] = frameTargetTemp[1];
+ *  frameUnder[0] = frameUnderTemp[0];
+ *  frameUnder[1] = frameUnderTemp[1];
+ *  frameUnder[2] = frameUnderTemp[2];
+ *  frameOver[0] = frameUnderOver[0];
+ *  frameOver[1] = frameUnderOver[1];
+ *  frameOver[2] = frameUnderOver[2];
+ *  frameCount[0]= 0;
+ *  frameCount[1]= 0;
+ *  frameCount[2]= 0;
+ *  frameCount[3]= 0;
+ *  frameCount[4]= 0;
+ *  frameCount[5]= 0;
+ *  frameCount[6]= 0;
+ *  frameCount[7]= 0;
+ *  frameCount[8]= 0;
  * 
- * if ( (wavePhaseLive[0] > frameTarget[0]) || (wavePhaseLive[0] < frameTarget[1]) ){             //If phase between upper and lower limits of frame target, target count++
+ * 
+ *  **** insert into waveEndIRS() ****
+ * 
+ * 
+ * if ( (wavePhaseLive[0] > frameTarget[0]) && (wavePhaseLive[0] < frameTarget[1]) ){             //If phase between upper and lower limits of frame target, target count++
  *   frameCount[4]++;
  * }else if (wavePhaseLive[0] <= frameTarget[0]) {                                                //If phase >= target lower limit, check frameUnder times
  *   if(wavePhaseLive[0] > frameUnder[0]){                                                          //If phase > frame-1 lower limit, frame-1++
