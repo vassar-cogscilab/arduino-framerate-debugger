@@ -295,9 +295,80 @@ void ISRwaveCalc(){
 
 /*   ADCwaveCalc
 void ADCwaveCalc(){
+  unsigned long startTime;
+  unsigned int currAnaWave = 0;
+  unsigned int minAnaWave = 0xFFFF;
+  unsigned int maxAnaWave = 0; 
+  const byte sampleMillis = 100; 
 
+  String stCurrMin;
+  String stCurrMax;
+  byte stCurrMinLength;
+  byte stCurrMaxLength;
+  byte static stPrevMinLength = 0;
+  byte static stPrevMaxLength = 0;
 
+  startTime = millis();
   
+    //Sample analog wave and check for button press. 
+  while( (currButton != 0) && (millis() - startTime < sampleMillis) ){
+
+    currAnaWave = analogRead(analogWavePin);
+
+    if (currAnaWave > maxAnaWave){
+      maxAnaWave = currAnaWave;
+    }
+    
+    if (currAnaWave < minAnaWave){
+      minAnaWave = currAnaWave;
+    }
+
+    buttonCheck();
+  }
+
+    //Respond to mode change and reset requests. 
+  if ( (currButton == bLeft) || (currButton == bRight) || (currButton == bSelect) ){
+    modeSwitch();
+  }
+
+    //Print mode label if mode has changed.  Set in modeSwitch().
+  if(modeSwitchFlag == true){
+  lcd.setCursor(0,0);
+  lcd.print("Wave +Peak:");
+  lcd.setCursor(0,1);
+  lcd.print("Wave -Peak:");
+  }
+  
+
+      //Set string values for printing
+  stCurrMax = String(maxAnaWave);
+  stCurrMin = String(minAnaWave);
+
+
+    //Update current value string length. Clear value display if character length decreased. 
+    //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
+  stCurrMaxLength = stCurrMax.length();
+  stCurrMinLength = stCurrMin.length();
+  if (stCurrMaxLength < stPrevMaxLength){
+    lcd.setCursor(11,0);
+    lcd.print("     ");
+  }
+  if (stCurrMinLength < stPrevMinLength){
+    lcd.setCursor(11,1);
+    lcd.print("     ");
+  }
+
+    //Print string values
+  lcd.setCursor(11,0);
+  lcd.print(stCurrMax);
+  lcd.setCursor(11,1);
+  lcd.print(stCurrMin);
+
+  stPrevMaxLength = stCurrMaxLength;
+  stPrevMinLength = stCurrMinLength;
+
+    //Prevent label from reprinting until next mode change. 
+  modeSwitchFlag = false;    
 }
 */
 
