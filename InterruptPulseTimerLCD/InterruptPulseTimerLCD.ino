@@ -427,47 +427,47 @@ int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
 
 void threshMain(){
 
-  String stCurrPWM;
-  String stCurrADC;
-  byte stCurrLengthPWM = 0;
-  byte stCurrLengthADC = 0;
-  byte static stPrevLengthPWM = 0;
-  byte static stPrevLengthADC = 0;
+  String stThresh;
+  String stPhase;
+  byte stCurrThreshLength = 0;
+  byte stCurrPhaseLength = 0;
+  byte static stPrevThreshLength = 0;
+  byte static stPrevPhaseLength = 0;
 
     //Print mode label if mode has changed.  Set in modeSwitch().
   if(modeSwitchFlag == true){
   lcd.setCursor(0,0);
-  lcd.print("Thresh PWM:");
+  lcd.print("Threshold:");
   lcd.setCursor(0,1);
-  lcd.print("Thresh ADC:");
+  lcd.print("Phase mS:");
   }
 
     //Set string values for printing
-  stCurrPWM = String(threshOut);
-  stCurrADC = String(analogRead(threshInPin));
+  stThresh = String(analogRead(threshInPin));
+  stPhase = String(ISRwaveData[xPhase][xVal], 2);
 
 
     //Update current value string length. Clear value display if character length decreased. 
     //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
-  stCurrLengthPWM = stCurrPWM.length();
-  stCurrLengthADC = stCurrADC.length();
-  if (stCurrLengthPWM < stPrevLengthPWM){
-    lcd.setCursor(11,0);
-    lcd.print("     ");
+  stCurrThreshLength = stThresh.length();
+  stCurrPhaseLength = stPhase.length();
+  if (stCurrThreshLength < stPrevThreshLength){
+    lcd.setCursor(10,0);
+    lcd.print("      ");
   }
-  if (stCurrLengthADC < stPrevLengthADC){
-    lcd.setCursor(11,1);
-    lcd.print("     ");
+  if (stCurrPhaseLength < stPrevPhaseLength){
+    lcd.setCursor(9,1);
+    lcd.print("       ");
   }
 
     //Print string values
-  lcd.setCursor(11,0);
-  lcd.print(stCurrPWM);
-  lcd.setCursor(11,1);
-  lcd.print(stCurrADC);
+  lcd.setCursor(10,0);
+  lcd.print(stThresh);
+  lcd.setCursor(9,1);
+  lcd.print(stPhase);
 
-  stPrevLengthPWM = stCurrLengthPWM;
-  stPrevLengthADC = stCurrLengthADC;
+  stPrevThreshLength = stCurrThreshLength;
+  stPrevPhaseLength = stCurrPhaseLength;
 
 
   threshOut = subSwitch(threshOut, 255, 0);             //Update threshold setting with Up/Down buttons. max value 250, min value 10
@@ -786,7 +786,7 @@ void modeSwitch(){
  * unsigned long frameLength = 1000000/ frameRate
  * long frameBuffer = frameLength >> 2
  * 
- * unsigned lnog frameTargetTemp[2];
+ * unsigned long frameTargetTemp[2];
  * unsigned long frameUnderTemp[3];
  * unsigned long frameOverTemp[3];
  * 
