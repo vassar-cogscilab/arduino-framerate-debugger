@@ -37,7 +37,7 @@ long volatile frameOver[3] = {37489, 54164, 70830};                          //t
 
   //Current frame rate and goal frame number
 int frameRate = 60;
-int frameGoalNum = 1; 
+int frameGoalNum = 3; 
 
 
 
@@ -236,6 +236,8 @@ void waveStartISR(){
 
 void waveEndISR(){
   // End wave timing for phase and frame calculations. Falling edge ISR. Digital pin 3
+  
+  long frameLive = 0;
 
   waveEndTime = micros();
 
@@ -261,6 +263,32 @@ void waveEndISR(){
         //Update running totals for averaging
       wavePhaseLive[3] += wavePhaseLive[0];
       wavePhaseLive[4]++;    
+
+      //Compare phase lenght to expected frame lengths and update counts
+    if ( (wavePhaseLive[0] > frameGoal[0]) && (wavePhaseLive[0] < frameGoal[1]) ){             //If phase between upper and lower limits of frame target, target count++
+      frameCount[4]++;
+    }else if (wavePhaseLive[0] <= frameGoal[0]) {                                                //If phase >= target lower limit, check frameUnder times
+      if(wavePhaseLive[0] > frameUnder[0]){                                                          //If phase > frame-1 lower limit, frame-1++
+        frameCount[3]++;
+      }else if (wavePhaseLive[0] > frameUnder[1]){                                                   //If phase > frame-2 lower limit, frame-2++
+        frameCount[2]++;
+      }else if (wavePhaseLive[0] > frameUnder[2]){                                                   //If phase > frame-3 lower limit, frame-3++
+        frameCount[1]++;
+      }else{                                                                                         //Else phase must be <= frame-3 lower limit, >frame-3++
+        frameCount[0]++;
+      }
+    }else if (wavePhaseLive[0] >= frameGoal[1]) {
+    //If phase <= target upper limit, check frameUnder times
+      if(wavePhaseLive[0] < frameOver[0]){                                                           //If phase < frame+1 upper limit, frame-1++
+        frameCount[5]++;
+      }else if (wavePhaseLive[0] < frameOver[1]){                                                    //If phase < frame+2 upper limit, frame-2++
+        frameCount[6]++;
+      }else if (wavePhaseLive[0] < frameOver[2]){                                                    //If phase < frame+3 upper limit, frame-3++
+        frameCount[7]++;
+      }else{                                                                                         //Else phase must be >= frame+3 upper limit, >frame-3++
+        frameCount[8]++;
+      }
+    }
   
         //Update trigger flags
       phaseUpdateFlag = true;         //Tell ISRwaveCalc() to update data 
@@ -472,27 +500,41 @@ void waveReset(){
   lcd.clear();
 
  
- unsigned long frameGoalTemp[2];                      //For calculation. Store target frame phase length ±buffer upper and lower limits
- unsigned long frameUnderTemp[3];                       //For calculation. Store frame phase length buffered lower limits for f-1 through f-3
- unsigned long frameOverTemp[3];                        //For calculation. Store frame phase length buffered upper limits for f+1 through f+3
+ long frameGoalTemp[2];                        //For calculation. Store target frame phase length ±buffer upper and lower limits
+ long frameUnderTemp[3];                       //For calculation. Store frame phase length buffered lower limits for f-1 through f-3
+ long frameOverTemp[3];                        //For calculation. Store frame phase length buffered upper limits for f+1 through f+3
  
  unsigned long frameLength = 1000000/ frameRate;         //Set target frame phase length in uS. 1/frameRate = frames/Sec. 1000000/frameRate = frames/uS. 
  unsigned long frameBuffer = frameLength >> 2;           //Buffer is 25% of frame rate. Allows for phase length tolerance from threshold and filter effects. 
                                                            //Bitshift right 2 is equivalent to val/4 in unsigned integer types, but much faster. 
+
+ Serial.println(frameLength);
+ Serial.println(frameBuffer);
                                                            
                                                            
  frameGoalTemp[0] = (frameLength * frameGoalNum) - frameBuffer;       //For calculation. Set target frame phase length - buffered lower limit
  frameGoalTemp[1] = (frameLength * frameGoalNum) + frameBuffer;       //For calculation. Set target frame phase length + buffered upper limit
- 
- for (int i = 1; i++; i<4){                                          //For calculation. Set frame phase length buffered lower limits for f-1 through f-3
-   frameUnderTemp[i-1] = frameGoalTemp[0] - (frameLength * i);
- }
- 
- for (int i = 1; i++; i<4){                                          //For calculation. Set frame phase length buffered upper limits for f+1 through f+3
-   frameOverTemp[i-1] = frameGoalTemp[1] + (frameLength * i);
-  }
 
-  
+ Serial.println(frameGoalTemp[0]);
+ Serial.println(frameGoalTemp[1]);
+ 
+ frameUnderTemp[0] = frameGoalTemp[0] - frameLength;
+ frameUnderTemp[1] = frameUnderTemp[0] - frameLength;
+ frameUnderTemp[2] = frameUnderTemp[1] - frameLength;
+
+ Serial.println(frameUnderTemp[0]);
+ Serial.println(frameUnderTemp[1]);
+ Serial.println(frameUnderTemp[2]);
+ 
+ 
+ frameOverTemp[0] = frameGoalTemp[1] + frameLength;
+ frameOverTemp[1] = frameOverTemp[0] + frameLength;
+ frameOverTemp[2] = frameOverTemp[1] + frameLength;
+
+ Serial.println(frameOverTemp[0]);
+ Serial.println(frameOverTemp[1]);
+ Serial.println(frameOverTemp[2]);
+
   
     //reset live capture values and set reset flag. Disable interrupts to prevent error
   noInterrupts();
@@ -508,6 +550,27 @@ void waveReset(){
   wavePeriodLive[2] = 0;                      //Period max val.
   wavePeriodLive[3] = 0;                      //Period running total micros for averaging in ISRwaveCalc()
   wavePeriodLive[4] = 0;                      //Period running total updates for averaging in ISRwaveCalc() and total display in ppfdSub()
+
+    //Update and reset frame comparison values
+  frameGoal[0] = frameGoalTemp[0];
+  frameGoal[1] = frameGoalTemp[1];
+  frameUnder[0] = frameUnderTemp[0];
+  frameUnder[1] = frameUnderTemp[1];
+  frameUnder[2] = frameUnderTemp[2];
+  frameOver[0] = frameOverTemp[0];
+  frameOver[1] = frameOverTemp[1];
+  frameOver[2] = frameOverTemp[2];
+  frameCount[0]= 0;
+  frameCount[1]= 0;
+  frameCount[2]= 0;
+  frameCount[3]= 0;
+  frameCount[4]= 0;
+  frameCount[5]= 0;
+  frameCount[6]= 0;
+  frameCount[7]= 0;
+  frameCount[8]= 0;
+  
+
 
     //Reset IRS flags and error counts
   waveResetFlag = true;                       //Set reset flag to prevent period calc updates until second rising edge.
@@ -1038,83 +1101,3 @@ void modeSwitch(){
   }
   return;
 }
-
-
-
-/*
- * 
- *  ***Global variables***
- * 
-
- * 
- * 
- * **** insert into top of waveReset() above noInterrupts()
- * 
-
- *  *** insert into waveReset() within noInterrupts()
- *  
- *    //Update and reset frame comparison values
- *  frameGoal[0] = frameGoalTemp[0];
- *  frameGoal[1] = frameGoalTemp[1];
- *  frameUnder[0] = frameUnderTemp[0];
- *  frameUnder[1] = frameUnderTemp[1];
- *  frameUnder[2] = frameUnderTemp[2];
- *  frameOver[0] = frameUnderOver[0];
- *  frameOver[1] = frameUnderOver[1];
- *  frameOver[2] = frameUnderOver[2];
- *  frameCount[0]= 0;
- *  frameCount[1]= 0;
- *  frameCount[2]= 0;
- *  frameCount[3]= 0;
- *  frameCount[4]= 0;
- *  frameCount[5]= 0;
- *  frameCount[6]= 0;
- *  frameCount[7]= 0;
- *  frameCount[8]= 0;
- * 
- * 
- *  **** insert into waveEndIRS() ****
- * 
- * 
- * if ( (wavePhaseLive[0] > frameGoal[0]) && (wavePhaseLive[0] < frameGoal[1]) ){             //If phase between upper and lower limits of frame target, target count++
- *   frameCount[4]++;
- * }else if (wavePhaseLive[0] <= frameGoal[0]) {                                                //If phase >= target lower limit, check frameUnder times
- *   if(wavePhaseLive[0] > frameUnder[0]){                                                          //If phase > frame-1 lower limit, frame-1++
- *     frameCount[3]++;
- *   }else if (wavePhaseLive[0] > frameUnder[1]){                                                   //If phase > frame-2 lower limit, frame-2++
- *     frameCount[2]++;
- *   }else if (wavePhaseLive[0] > frameUnder[2]){                                                   //If phase > frame-3 lower limit, frame-3++
- *     frameCount[1]++;
- *   }else{                                                                                         //Else phase must be <= frame-3 lower limit, >frame-3++
- *     frameCount[0]++;
- * }else if (wavePhaseLive[0] >= frameGoal[1]) {                                                //If phase <= target upper limit, check frameUnder times
- *   if(wavePhaseLive[0] < frameOver[0]){                                                           //If phase < frame+1 upper limit, frame-1++
- *     frameCount[5]++;
- *   }else if (wavePhaseLive[0] < frameOver[1]){                                                    //If phase < frame+2 upper limit, frame-2++
- *     frameCount[6]++;
- *   }else if (wavePhaseLive[0] < frameOver[2]){                                                    //If phase < frame+3 upper limit, frame-3++
- *     frameCount[7]++;
- *   }else{                                                                                         //Else phase must be >= frame+3 upper limit, >frame-3++
- *     frameCount[8]++;
- * }
- * 
- * 
- * **** Labels ***
- * 
- * "Set F# Goal:    "
- * "F rate Hz:      "
- * "<Select> to save"
- * "Frame# Goal:    "
- * "F# = G:         "
- * "F# = G-1:       "
- * "F# = G-2:       "
- * "F# = G-3:       "
- * "F# < G-3:       "
- * "F# = G+1:       "
- * "F# = G+2:       "
- * "F# = G+3:       "
- * "F# > G+3:       "
-
- * 
- * 
- */
