@@ -29,6 +29,19 @@ bool volatile phaseUpdateFlag = false;              //For checking completed pha
 bool volatile periodUpdateFlag = false;             //For checking completed period duration update status.
 bool volatile waveResetFlag = true;                 //For checking recent reset. Suppresses phase data update until second rising edge.   
 
+unsigned long volatile frameCount[9] = {0,0,0,0,0,0,0,0,0};                 //Store current frame counts. {>f-3, f-3, f-2, f-1, f, f+1, f+2, f+3, >f+3}
+long volatile frameGoal[2] = {12500, 20832};                               //target frame length upper and lower limits. Default values for 60Hz frame rate with 1 frame target. 
+long volatile frameUnder[3] = {-4166, -20832, -37498};                       //target -1frame, -2frames, -3frames. lower limits. 
+long volatile frameOver[3] = {37489, 54164, 70830};                          //target +1frame, +2frames, +3frames. upper limits. 
+
+
+  //Current frame rate and goal frame number
+int frameRate = 60;
+int frameGoalNum = 1; 
+
+
+
+
   // Storage for ISRwave data. 
   // Updated in: ISRwaveCalc(), waveReset()
   // Used in: ISRwaveCalc(), waveReset(), phaseMain(), periodMain(), freqMain()
@@ -457,6 +470,29 @@ void waveReset(){
   //Reset all wave data to default values
   
   lcd.clear();
+
+ 
+ unsigned long frameGoalTemp[2];                      //For calculation. Store target frame phase length ±buffer upper and lower limits
+ unsigned long frameUnderTemp[3];                       //For calculation. Store frame phase length buffered lower limits for f-1 through f-3
+ unsigned long frameOverTemp[3];                        //For calculation. Store frame phase length buffered upper limits for f+1 through f+3
+ 
+ unsigned long frameLength = 1000000/ frameRate;         //Set target frame phase length in uS. 1/frameRate = frames/Sec. 1000000/frameRate = frames/uS. 
+ unsigned long frameBuffer = frameLength >> 2;           //Buffer is 25% of frame rate. Allows for phase length tolerance from threshold and filter effects. 
+                                                           //Bitshift right 2 is equivalent to val/4 in unsigned integer types, but much faster. 
+                                                           
+                                                           
+ frameGoalTemp[0] = (frameLength * frameGoalNum) - frameBuffer;       //For calculation. Set target frame phase length - buffered lower limit
+ frameGoalTemp[1] = (frameLength * frameGoalNum) + frameBuffer;       //For calculation. Set target frame phase length + buffered upper limit
+ 
+ for (int i = 1; i++; i<4){                                          //For calculation. Set frame phase length buffered lower limits for f-1 through f-3
+   frameUnderTemp[i-1] = frameGoalTemp[0] - (frameLength * i);
+ }
+ 
+ for (int i = 1; i++; i<4){                                          //For calculation. Set frame phase length buffered upper limits for f+1 through f+3
+   frameOverTemp[i-1] = frameGoalTemp[1] + (frameLength * i);
+  }
+
+  
   
     //reset live capture values and set reset flag. Disable interrupts to prevent error
   noInterrupts();
@@ -624,7 +660,7 @@ void threshMain(){
 
   threshOut = subSwitch(threshOut, 255, 0);             //Update threshold setting with Up/Down buttons. max value 250, min value 10
 
-/*
+/*  old threshold setting behavior
     //Check for threshold setting updates
   if( currButton != 0 ){
     if( millis() - lastModeSwitch >= modeSwitchDelay){      //Check if minimum switch delay is met for more controlled switching. 
@@ -655,6 +691,86 @@ void threshMain(){
   modeSwitchFlag = false;
 }
 
+
+void frameCountMain(){
+
+
+  byte static currSubMode = 4;                                                          //Store current sub mode. (Value sets boot default)
+  const byte frUnderMoreThan3 = 0;                                                      //Display number of frames below goal -3
+  const byte frUnder3 = 1;                                                              //Display number of frames equal to goal -3
+  const byte frUnder2 = 2;                                                              //Display number of frames equal to goal -2
+  const byte frUnder1 = 3;                                                              //Display number of frames equal to goal -1
+  const byte frGoal = 4;                                                                //Display number of frames equal to goal
+  const byte frOver1 = 5;                                                               //Display number of frames equal to goal +1
+  const byte frOver2 = 6;                                                               //Display number of frames equal to goal +2
+  const byte frOver3 = 7;                                                               //Display number of frames equal to goal +3
+  const byte frOverMoreThan3 = 8;                                                       //Display number of frames above goal +3 
+
+  byte static cursorSub;                                                                //Cursor postion to print selected value. 
+
+                                                       
+
+    //Print mode label and current frame goal number if mode has changed.  Flag set in modeSwitch().
+  if(modeSwitchFlag == true){
+  lcd.setCursor(0,0);
+  lcd.print("Frame# Goal:    ");
+  lcd.setCursor(12,0);
+  lcd.print(frameGoalNum);
+  }
+
+    //Update selected mode.
+  currSubMode = subSwitch(currSubMode, 8, 0);
+
+    //Print mode label if mode has changed. 
+  if( modeSwitchFlag == true ){
+    lcd.setCursor(0,1);
+    switch (currSubMode){
+      case frUnderMoreThan3:
+            lcd.print("F# < G-3:       ");     
+            break;
+      case frUnder3:
+            lcd.print("F# = G-3:       ");
+            break;
+      case frUnder2:
+            lcd.print("F# = G-2:       ");
+            break;
+      case frUnder1:
+            lcd.print("F# = G-1:       ");
+            break;
+      case frGoal:
+            lcd.print("F# = G:         ");
+            break;
+      case frOver1:
+            lcd.print("F# = G+1:       ");
+            break;  
+      case frOver2:
+            lcd.print("F# = G+2:       ");
+            break;
+      case frOver3:
+            lcd.print("F# = G+3:       ");
+            break;
+      case frOverMoreThan3:
+            lcd.print("F# > G+3:       ");
+            break;
+    }
+
+      //Set cursor position variable based on label length
+    if(currSubMode == frGoal){
+      cursorSub = 7;
+    }else{
+      cursorSub = 9;
+    }
+  }
+
+    //Print current count for selected mode
+  lcd.setCursor(cursorSub, 1);
+  lcd.print(frameCount[currSubMode]);
+
+
+    //Prevent label from reprinting until next mode change. 
+  modeSwitchFlag = false;
+  
+}
 
 void ppfdMain(byte modeReq = 0){
   //Phase, Period, Frequency, and Duty modes top print line display settings
@@ -860,10 +976,11 @@ void modeSwitch(){
  
     //Mode list. Values set rotation order. ***Must be zero referenced and sequential*** 
   const byte mainThresh = 0;                                                            //Threshold setting and signal min/max measurement
-  const byte mainPhase = 1;                                                             //Phase measurement mode
-  const byte mainPeriod = 2;                                                            //Period measurement mode
-  const byte mainFreq = 3;                                                              //Frequency measurement mode 
-  const byte mainDuty = 4;                                                              //Duty cycle measurement mode
+  const byte mainFrameCount = 1;                                                        //Frame counts vs goal measurement mode. 
+  const byte mainPhase = 2;                                                             //Phase measurement mode
+  const byte mainPeriod = 3;                                                            //Period measurement mode
+  const byte mainFreq = 4;                                                              //Frequency measurement mode 
+  const byte mainDuty = 5;                                                              //Duty cycle measurement mode
 
                                                    
   if( currButton != 0 ){
@@ -915,6 +1032,9 @@ void modeSwitch(){
     case mainDuty:
           ppfdMain(3);
           break;
+    case mainFrameCount:
+          frameCountMain();
+          break;
   }
   return;
 }
@@ -925,41 +1045,12 @@ void modeSwitch(){
  * 
  *  ***Global variables***
  * 
- * unsigned long volatile frameCount[9] = {0,0,0,0,0,0,0,0,0};                 //Store current frame counts. {>f-3, f-3, f-2, f-1, f, f+1, f+2, f+3, >f+3}
- * long volatile frameGoal[2] = {12500, 20832};                               //target frame length upper and lower limits. Default values for 60Hz frame rate with 1 frame target. 
- * long volatile frameUnder[3] = {-4166, -20832, -37498};                       //target -1frame, -2frames, -3frames. lower limits. 
- * long volatile frameOver[3] = {37489, 54164, 70830};                          //target +1frame, +2frames, +3frames. upper limits. 
- * 
- * 
- * int frameRate = 60;
- * int frameCount = 1; 
- * 
+
  * 
  * 
  * **** insert into top of waveReset() above noInterrupts()
  * 
- * 
- * unsigned long frameGoalTemp[2];                      //For calculation. Store target frame phase length ±buffer upper and lower limits
- * unsigned long frameUnderTemp[3];                       //For calculation. Store frame phase length buffered lower limits for f-1 through f-3
- * unsigned long frameOverTemp[3];                        //For calculation. Store frame phase length buffered upper limits for f+1 through f+3
- * 
- * unsigned long frameLength = 1000000/ frameRate         //Set target frame phase length in uS. 1/frameRate = frames/Sec. 1000000/frameRate = frames/uS. 
- * unsigned long frameBuffer = frameLength >> 2           //Buffer is 25% of frame rate. Allows for phase length tolerance from threshold and filter effects. 
- *                                                           //Bitshift right 2 is equivalent to val/4 in unsigned integer types, but much faster. 
- *                                                           
- *                                                           
- * frameGoalTemp[0] = (frameLength * frameCount) - frameBuffer;       //For calculation. Set target frame phase length - buffered lower limit
- * frameGoalTemp[1] = (frameLength * frameCount) + frameBuffer;       //For calculation. Set target frame phase length + buffered upper limit
- * 
- * for (int i = 1, i++, i<4){                                          //For calculation. Set frame phase length buffered lower limits for f-1 through f-3
- *   frameUnderTemp[i-1] = frameGoalTemp[0] - (frameLength * i);
- * }
- * 
- * for (int i = 1, i++, i<4){                                          //For calculation. Set frame phase length buffered upper limits for f+1 through f+3
- *   framOverTemp[i-1] = frameGoalTemp[1] + (frameLength * i);
- * }
- *
- * 
+
  *  *** insert into waveReset() within noInterrupts()
  *  
  *    //Update and reset frame comparison values
