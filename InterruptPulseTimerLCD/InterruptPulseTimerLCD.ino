@@ -113,7 +113,7 @@ void setup() {
   waveReset();
 }
 
-/* 
+/* Notes on interrupt logic and control requirements
  *  
  *  
  * ***Interrupt handling behavior in microcontroller and code*** 
@@ -180,7 +180,7 @@ void waveStartISR(){
   waveStartTime = micros();                
 
     //Check if waveResetFlag has been cleared. If flag still true, only store time for next cycle calculation. 
-  if(waveResetFlag == false){                                   //Skip first Period calc after reset to capture full rise to rise time. 
+  if(waveResetFlag == false){              
     
       //Check flag to detect error. Update period times if passes. 
       //Else increment error count. Two rising edges triggered without a falling edge. 
@@ -207,17 +207,17 @@ void waveStartISR(){
       waveStartLast = waveStartTime;          //Store time for next period calculation           
       periodUpdateFlag = true;                //Set flag to trigger update in IRSwaveCalc()
       waveEndFlag = false;                    //False until reset on next falling edge for error prevention  
+      
     }else{
-      waveErrorCount++;                         //Increment error count
-      waveStartLast = waveStartTime;            //Update time for next period calculation
+      waveErrorCount++;                       //Increment error count
+      waveStartLast = waveStartTime;          //Update time for next period calculation
     }
-  }
-  else{
+  }else{
     waveStartLast = waveStartTime;            //Update time for first period calc after reset
     waveResetFlag = false;                    //Clear reset flag to allow new updates.  
   }
   
-  waveStartFlag = true;                     //Set flag to be check in waveEndISR(). 
+  waveStartFlag = true;                       //Set flag to be check in waveEndISR(). 
   
 }
 
@@ -252,8 +252,7 @@ void waveEndISR(){
         //Update trigger flags
       phaseUpdateFlag = true;         //Tell ISRwaveCalc() to update data 
       waveStartFlag = false;          //False until reset on next rising edge for error prevention  
-    } 
-    else{
+    }else{
       waveErrorCount++;               //Increment error count
     }
   }
