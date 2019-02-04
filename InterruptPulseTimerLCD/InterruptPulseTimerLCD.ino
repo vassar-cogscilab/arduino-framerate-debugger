@@ -285,9 +285,13 @@ void ISRwaveCalc(){
 
       //Copy new data and update reset flag. Interrupts disabled to prevent error. 
     noInterrupts();
-    for (byte i=0; i<5; i++){
-    waveMicrosCopy[i] = wavePhaseLive[i];       //Copy unsigned long to unsigned long to minimize ISR down time. 
-    }
+      //Copy unsigned long phase micros data for further calculations to minimize ISR down time. Intentionally verbose to eliminate conditional checks and minimize interrupt down time. 
+    waveMicrosCopy[0] = wavePhaseLive[0];       
+    waveMicrosCopy[1] = wavePhaseLive[1];
+    waveMicrosCopy[2] = wavePhaseLive[2];
+    waveMicrosCopy[3] = wavePhaseLive[3];
+    waveMicrosCopy[4] = wavePhaseLive[4];
+    
     phaseUpdateFlag = false;                   //Reset update flag
     interrupts(); 
 
@@ -322,11 +326,16 @@ void ISRwaveCalc(){
 
     //Period time, freq, and duty updates
   if( periodUpdateFlag == true ){
-    
+
+      //Copy new data and update reset flag. Interrupts disabled to prevent error. 
     noInterrupts();
-    for (byte i=0; i<5; i++){
-      waveMicrosCopy[i] = wavePeriodLive[i];       //Copy unsigned long to unsigned long to minimize ISR down time. 
-    }
+      //Copy unsigned long period micros data for further calculations to minimize ISR down time. Intentionally verbose to eliminate conditional checks and minimize interrupt down time. 
+    waveMicrosCopy[0] = wavePeriodLive[0]; 
+    waveMicrosCopy[1] = wavePeriodLive[1];
+    waveMicrosCopy[2] = wavePeriodLive[2];
+    waveMicrosCopy[3] = wavePeriodLive[3];
+    waveMicrosCopy[4] = wavePeriodLive[4];
+      
     periodUpdateFlag = false;
     interrupts();
     
@@ -754,12 +763,6 @@ void ppfdSub(byte currModeVal, byte deciSub){
   unsigned long sampleCounts;
   unsigned long totalCounts;
 
-  if (currModeVal == xPhase){
-    totalCounts = wavePhaseLive[4];
-  }
-  else{
-    totalCounts = wavePeriodLive[4];
-  }
 
   currSubMode = subSwitch(currSubMode, 4, 0);
   
@@ -815,6 +818,11 @@ void ppfdSub(byte currModeVal, byte deciSub){
           stSubVal = String(ISRwaveData[currModeVal][xAvg], deciSub);
           break;
     case subModeTotal:
+          if (currModeVal == xPhase){
+            totalCounts = wavePhaseLive[4];
+          }else{
+            totalCounts = wavePeriodLive[4];
+          }
           stSubVal = String(totalCounts);
           break;
     case subModeErrors:
