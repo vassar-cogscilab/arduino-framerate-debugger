@@ -14,7 +14,7 @@ const byte bRight = 4;
 const byte bSelect = 5;
 byte static currButton = 0;
 
-  // Volitile global variables for waveStartISR() and waveEndISR() Interrupt Service Routines (ISRs). ***All variables used in interrupt ISRs must be global and volatile.***
+  // Volatile global variables for waveStartISR() and waveEndISR() Interrupt Service Routines (ISRs). ***All variables used in interrupt ISRs must be global and volatile.***
   // Updated in: waveStartISR(), waveEndISR(), waveReset()
   // Used in: waveStartISR(), waveEndISR(), ISRwaveCalc(), phaseMain(), periodMain()
 unsigned long volatile waveStartTime = 0;           //Time micros for rising edge
@@ -122,7 +122,7 @@ void setup() {
  * If an interrupt request triggers while interrupts are disabled (time between "noInterrupts();" and "interrupts();"), the ISR will launch immediately after interrupts are re-enabled. 
  * If multiple interrupt requests are placed while interrupts are disabled, ISR's execute in order of their priority. 
  * Interrupts are disabled automatically while an ISR is running and re-enabled upon completion. 
- * If addional and/or multiple interrupt requests trigger while an ISR is running, newly requested ISRs will run sequentially in priority order until all request are cleared.   
+ * If additional and/or multiple interrupt requests trigger while an ISR is running, newly requested ISRs will run sequentially in priority order until all request are cleared.   
  *  
  * Microcontroller reset request has highest priority (IRQ priority 0). 
  * Falling edge interrupt has higher priority (INT0, IRQ priority 1) than rising edge (INT1, IRQ priority 2). 
@@ -136,7 +136,7 @@ void setup() {
  *  
  * ***ISR reset detection logic.***  
  * 
- * waveReset() resests default values and sets waveResetFlag. 
+ * waveReset() resets default values and sets waveResetFlag. 
  *   Interrupts disabled during reset. Interrupt request flags are cleared to prevent immediate launch of ISR if edge detected while interrupts disabled. 
  * 
  * First interrupt after reset: 
@@ -147,7 +147,7 @@ void setup() {
  *    Wave start time saved for the next period calculation. 
  *  If falling edge:
  *    waveEndISR fails waveResetFlag conditional check. 
- *    Set waveEndFlag to allow waveStartISR to beging updating after waveResetFlag has cleared.  
+ *    Set waveEndFlag to allow waveStartISR to begin updating after waveResetFlag has cleared.  
  * 
  * This prevents an update to period and phase data until after the first rising edge is detected so calculations are not made with old data. 
  * 
@@ -155,13 +155,13 @@ void setup() {
  *   
  * waveStartISR: 
  *   If waveEndFlag check passes:
- *      Update start time for current period and next phase calcualtions. 
+ *      Update start time for current period and next phase calculations. 
  *      Update period calculations. 
  *      Set waveStartFlag for waveEndISR error check and wave status update in loop.  
  *      Set periodUpdateFlag to trigger further calculation in loop. 
  *      Clear waveEndFlag for waveStartISR error detection. 
  *      Save start time for next period calculation. 
- *   If waveEndFlag failes: 
+ *   If waveEndFlag fails: 
  *      Error detected. Two rising edges detected without a falling edge. 
  *      Save start time for next period calculation. 
  * waveEndISR:
@@ -169,7 +169,7 @@ void setup() {
  *      Update phase and frame calculations. 
  *      Set waveEndFlag for waveStartISR error check.  
  *      Clear waveStartFlag for waveEndISR error detection. 
- *   If waveStartFlag failes: 
+ *   If waveStartFlag fails: 
  *      Error detected. Two falling edges detected without a rising edge. 
  * 
  */
@@ -190,12 +190,12 @@ void waveStartISR(){
       wavePeriodLive[0] = (waveStartTime - waveStartLast);                
   
         //Update period min
-      if( wavePeriodLive[0] < wavePeriodLive[1] ){
+      if(wavePeriodLive[0] < wavePeriodLive[1]){
         wavePeriodLive[1] = wavePeriodLive[0];
       }    
     
         //Update period max
-      if( wavePeriodLive[0] > wavePeriodLive[2] ){
+      if(wavePeriodLive[0] > wavePeriodLive[2]){
         wavePeriodLive[2] = wavePeriodLive[0];
       } 
   
@@ -230,18 +230,18 @@ void waveEndISR(){
 
       //Check flag to detect error. Update phase times if passes. 
       //Else increment error count. Two falling edges triggered without a rising edge. 
-    if( (waveStartFlag == true){
+    if(waveStartFlag == true){
 
         //Update phase length micros
       wavePhaseLive[0] = (waveEndTime - waveStartTime);             
   
         //Update phase min
-      if( wavePhaseLive[0] < wavePhaseLive[1] ){
+      if(wavePhaseLive[0] < wavePhaseLive[1]){
         wavePhaseLive[1] = wavePhaseLive[0];
       }    
     
         //Update phase max
-      if( wavePhaseLive[0] > wavePhaseLive[2] ){
+      if(wavePhaseLive[0] > wavePhaseLive[2]){
         wavePhaseLive[2] = wavePhaseLive[0];
       } 
   
@@ -472,7 +472,7 @@ void waveReset(){
   waveErrorCount = 0;                         //Clear error count
 
     //Clear external interrupt flags to prevent immediate launch of ISRs if interrupt request triggered while data was being reset.
-    //Fixes device reset bug due to recurrsive calls of IRSs after data reset.   
+    //Fixes device reset bug due to recursive calls of IRSs after data reset.   
   EIFR = 0x03;                                //Write logical 1 to INTF1 and INTF0 bits of EIFR (External Interrupt Flag Register). Atmega328P datasheet page 55 for details.  
   interrupts();
 
@@ -728,7 +728,7 @@ void ppfdMain(byte modeReq = 0){
   lcd.setCursor(cursorMain,0);
   lcd.print(stMainVal);
 
-    //Save current string length for comparision on next loop. 
+    //Save current string length for comparison on next loop. 
   stPrevMainLength = stMainLength;  
 
 
@@ -934,14 +934,14 @@ void modeSwitch(){
  * 
  * unsigned long frameLength = 1000000/ frameRate         //Set target frame phase length in uS. 1/frameRate = frames/Sec. 1000000/frameRate = frames/uS. 
  * unsigned long frameBuffer = frameLength >> 2           //Buffer is 25% of frame rate. Allows for phase length tolerance from threshold and filter effects. 
- *                                                           //Bitshift right 2 is equivelant to val/4 in unsigned integer types, but much faster. 
+ *                                                           //Bitshift right 2 is equivalent to val/4 in unsigned integer types, but much faster. 
  * 
  * unsigned long frameTargetTemp[2];                      //For calculation. Store target frame phase length ±buffer upper and lower limits
  * unsigned long frameUnderTemp[3];                       //For calculation. Store frame phase length buffered lower limits for f-1 through f-3
  * unsigned long frameOverTemp[3];                        //For calculation. Store frame phase length buffered upper limits for f+1 through f+3
  * 
- * frameTargetTemp[0] = (frameLength * frameCount) - frameBuffer;       //For calculatoin. Set target frame phase length - buffered lower limit
- * frameTargetTemp[1] = (frameLength * frameCount) + frameBuffer;       //For calculatoin. Set target frame phase length + buffered upper limit
+ * frameTargetTemp[0] = (frameLength * frameCount) - frameBuffer;       //For calculation. Set target frame phase length - buffered lower limit
+ * frameTargetTemp[1] = (frameLength * frameCount) + frameBuffer;       //For calculation. Set target frame phase length + buffered upper limit
  * 
  * for (int i = 1, i++, i<4){                                          //For calculation. Set frame phase length buffered lower limits for f-1 through f-3
  *   frameUnderTemp[i-1] = frameTargetTemp[0] - (frameLength * i);
