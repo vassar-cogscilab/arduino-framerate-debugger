@@ -790,9 +790,7 @@ void ppfdSub(byte currModeVal, byte deciSub){
             lcd.print("Errors:         ");
             cursorSub = 7;
             break;  
-    }
-    
-    
+    }    
   }
 
     //Set string output value based on current sub mode.
@@ -857,8 +855,8 @@ void modeSwitch(){
     //Button functions: (bRight = Main++), (bLeft = Main--), (bSelect = Reset stats). 
 
     //Mode switch control variables.
-  int static currMainMode = 1;                                                          //Store current main mode.
-  const byte maxMainVal = 4;                                                            //Total number of modes (zero referenced) 
+  int static currMainMode = 0;                                                          //Store current main mode. Initial value is starting mode after reboot. 
+  const byte maxMainVal = 4;                                                            //Total number of modes (below mode list count, zero ) 
  
     //Mode list. Values set rotation order. ***Must be zero referenced and sequential*** 
   const byte mainThresh = 0;                                                            //Threshold setting and signal min/max measurement
@@ -927,8 +925,8 @@ void modeSwitch(){
  * 
  *  ***Global variables***
  * 
- * unsigned long volatile frameCount[9] = {0,0,0,0,0,0,0,0,0};                 //{>f-3, f-3, f-2, f-1, f, f+1, f+2, f+3, >f+3}
- * long volatile frameTarget[2] = {12500, 20832};                               //target frame length upper and lower limits. Default values for 60Hz frame rate. 
+ * unsigned long volatile frameCount[9] = {0,0,0,0,0,0,0,0,0};                 //Store current frame counts. {>f-3, f-3, f-2, f-1, f, f+1, f+2, f+3, >f+3}
+ * long volatile frameGoal[2] = {12500, 20832};                               //target frame length upper and lower limits. Default values for 60Hz frame rate with 1 frame target. 
  * long volatile frameUnder[3] = {-4166, -20832, -37498};                       //target -1frame, -2frames, -3frames. lower limits. 
  * long volatile frameOver[3] = {37489, 54164, 70830};                          //target +1frame, +2frames, +3frames. upper limits. 
  * 
@@ -940,31 +938,33 @@ void modeSwitch(){
  * 
  * **** insert into top of waveReset() above noInterrupts()
  * 
- * unsigned long frameLength = 1000000/ frameRate         //Set target frame phase length in uS. 1/frameRate = frames/Sec. 1000000/frameRate = frames/uS. 
- * unsigned long frameBuffer = frameLength >> 2           //Buffer is 25% of frame rate. Allows for phase length tolerance from threshold and filter effects. 
- *                                                           //Bitshift right 2 is equivalent to val/4 in unsigned integer types, but much faster. 
  * 
- * unsigned long frameTargetTemp[2];                      //For calculation. Store target frame phase length ±buffer upper and lower limits
+ * unsigned long frameGoalTemp[2];                      //For calculation. Store target frame phase length ±buffer upper and lower limits
  * unsigned long frameUnderTemp[3];                       //For calculation. Store frame phase length buffered lower limits for f-1 through f-3
  * unsigned long frameOverTemp[3];                        //For calculation. Store frame phase length buffered upper limits for f+1 through f+3
  * 
- * frameTargetTemp[0] = (frameLength * frameCount) - frameBuffer;       //For calculation. Set target frame phase length - buffered lower limit
- * frameTargetTemp[1] = (frameLength * frameCount) + frameBuffer;       //For calculation. Set target frame phase length + buffered upper limit
+ * unsigned long frameLength = 1000000/ frameRate         //Set target frame phase length in uS. 1/frameRate = frames/Sec. 1000000/frameRate = frames/uS. 
+ * unsigned long frameBuffer = frameLength >> 2           //Buffer is 25% of frame rate. Allows for phase length tolerance from threshold and filter effects. 
+ *                                                           //Bitshift right 2 is equivalent to val/4 in unsigned integer types, but much faster. 
+ *                                                           
+ *                                                           
+ * frameGoalTemp[0] = (frameLength * frameCount) - frameBuffer;       //For calculation. Set target frame phase length - buffered lower limit
+ * frameGoalTemp[1] = (frameLength * frameCount) + frameBuffer;       //For calculation. Set target frame phase length + buffered upper limit
  * 
  * for (int i = 1, i++, i<4){                                          //For calculation. Set frame phase length buffered lower limits for f-1 through f-3
- *   frameUnderTemp[i-1] = frameTargetTemp[0] - (frameLength * i);
+ *   frameUnderTemp[i-1] = frameGoalTemp[0] - (frameLength * i);
  * }
  * 
  * for (int i = 1, i++, i<4){                                          //For calculation. Set frame phase length buffered upper limits for f+1 through f+3
- *   framOverTemp[i-1] = fameTargetTemp[1] + (frameLength * i);
+ *   framOverTemp[i-1] = frameGoalTemp[1] + (frameLength * i);
  * }
  *
  * 
  *  *** insert into waveReset() within noInterrupts()
  *  
  *    //Update and reset frame comparison values
- *  frameTarget[0] = frameTargetTemp[0];
- *  frameTarget[1] = frameTargetTemp[1];
+ *  frameGoal[0] = frameGoalTemp[0];
+ *  frameGoal[1] = frameGoalTemp[1];
  *  frameUnder[0] = frameUnderTemp[0];
  *  frameUnder[1] = frameUnderTemp[1];
  *  frameUnder[2] = frameUnderTemp[2];
@@ -985,9 +985,9 @@ void modeSwitch(){
  *  **** insert into waveEndIRS() ****
  * 
  * 
- * if ( (wavePhaseLive[0] > frameTarget[0]) && (wavePhaseLive[0] < frameTarget[1]) ){             //If phase between upper and lower limits of frame target, target count++
+ * if ( (wavePhaseLive[0] > frameGoal[0]) && (wavePhaseLive[0] < frameGoal[1]) ){             //If phase between upper and lower limits of frame target, target count++
  *   frameCount[4]++;
- * }else if (wavePhaseLive[0] <= frameTarget[0]) {                                                //If phase >= target lower limit, check frameUnder times
+ * }else if (wavePhaseLive[0] <= frameGoal[0]) {                                                //If phase >= target lower limit, check frameUnder times
  *   if(wavePhaseLive[0] > frameUnder[0]){                                                          //If phase > frame-1 lower limit, frame-1++
  *     frameCount[3]++;
  *   }else if (wavePhaseLive[0] > frameUnder[1]){                                                   //If phase > frame-2 lower limit, frame-2++
@@ -996,7 +996,7 @@ void modeSwitch(){
  *     frameCount[1]++;
  *   }else{                                                                                         //Else phase must be <= frame-3 lower limit, >frame-3++
  *     frameCount[0]++;
- * }else if (wavePhaseLive[0] >= frameTarget[1]) {                                                //If phase <= target upper limit, check frameUnder times
+ * }else if (wavePhaseLive[0] >= frameGoal[1]) {                                                //If phase <= target upper limit, check frameUnder times
  *   if(wavePhaseLive[0] < frameOver[0]){                                                           //If phase < frame+1 upper limit, frame-1++
  *     frameCount[5]++;
  *   }else if (wavePhaseLive[0] < frameOver[1]){                                                    //If phase < frame+2 upper limit, frame-2++
@@ -1007,6 +1007,23 @@ void modeSwitch(){
  *     frameCount[8]++;
  * }
  * 
+ * 
+ * **** Labels ***
+ * 
+ * "Set F# Goal:    "
+ * "F rate Hz:      "
+ * "<Select> to save"
+ * "Frame# Goal:    "
+ * "F# = G:         "
+ * "F# = G-1:       "
+ * "F# = G-2:       "
+ * "F# = G-3:       "
+ * "F# < G-3:       "
+ * "F# = G+1:       "
+ * "F# = G+2:       "
+ * "F# = G+3:       "
+ * "F# > G+3:       "
+
  * 
  * 
  */
