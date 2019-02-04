@@ -18,7 +18,7 @@ byte static currButton = 0;
   // Updated in: waveStartISR(), waveEndISR(), waveReset()
   // Used in: waveStartISR(), waveEndISR(), ISRwaveCalc(), phaseMain(), periodMain()
 unsigned long volatile waveStartTime = 0;           //Time micros for rising edge
-unsigned long volatile waveEndTime = 0;             //Time micros for falling edge
+//unsigned long volatile waveEndTime = 0;             //Time micros for falling edge
 unsigned long volatile waveStartLast = 0;           //Time micros last rising edge
 unsigned long volatile wavePeriodLive[5] = {0,0xFFFFFFFF,0,0,0};        //{Period update: current, min, max, total for avg, count for avg}
 unsigned long volatile wavePhaseLive[5] = {0,0xFFFFFFFF,0,0,0};         //{Phase update: current, min, max, total for avg, count for avg}
@@ -37,7 +37,7 @@ long volatile frameOver[3] = {37489, 54164, 70830};                          //t
 
   //Current frame rate and goal frame number
 int frameRate = 60;
-int frameGoalNum = 3; 
+int frameGoalNum = 2; 
 
 
 
@@ -237,7 +237,8 @@ void waveStartISR(){
 void waveEndISR(){
   // End wave timing for phase and frame calculations. Falling edge ISR. Digital pin 3
   
-  long frameLive = 0;
+  long frameLive;
+  unsigned long waveEndTime;
 
   waveEndTime = micros();
 
@@ -264,32 +265,40 @@ void waveEndISR(){
       wavePhaseLive[3] += wavePhaseLive[0];
       wavePhaseLive[4]++;    
 
-      //Compare phase lenght to expected frame lengths and update counts
-    if ( (wavePhaseLive[0] > frameGoal[0]) && (wavePhaseLive[0] < frameGoal[1]) ){             //If phase between upper and lower limits of frame target, target count++
-      frameCount[4]++;
-    }else if (wavePhaseLive[0] <= frameGoal[0]) {                                                //If phase >= target lower limit, check frameUnder times
-      if(wavePhaseLive[0] > frameUnder[0]){                                                          //If phase > frame-1 lower limit, frame-1++
-        frameCount[3]++;
-      }else if (wavePhaseLive[0] > frameUnder[1]){                                                   //If phase > frame-2 lower limit, frame-2++
-        frameCount[2]++;
-      }else if (wavePhaseLive[0] > frameUnder[2]){                                                   //If phase > frame-3 lower limit, frame-3++
-        frameCount[1]++;
-      }else{                                                                                         //Else phase must be <= frame-3 lower limit, >frame-3++
-        frameCount[0]++;
-      }
-    }else if (wavePhaseLive[0] >= frameGoal[1]) {
-    //If phase <= target upper limit, check frameUnder times
-      if(wavePhaseLive[0] < frameOver[0]){                                                           //If phase < frame+1 upper limit, frame-1++
-        frameCount[5]++;
-      }else if (wavePhaseLive[0] < frameOver[1]){                                                    //If phase < frame+2 upper limit, frame-2++
-        frameCount[6]++;
-      }else if (wavePhaseLive[0] < frameOver[2]){                                                    //If phase < frame+3 upper limit, frame-3++
-        frameCount[7]++;
-      }else{                                                                                         //Else phase must be >= frame+3 upper limit, >frame-3++
-        frameCount[8]++;
-      }
-    }
+      //Check if phase length micros can be converted to a valid signed long. 
+      //Convert to signed long for frame length comparison and update correct frame count. Needed for proper evaluation against negative values for low frame count goals.
+      //Else increment >= frame+3 count. Value exceeds all user settable ranges. 
+    if( wavePhaseLive[0] < 0x7FFFFFFF ){
+      frameLive = wavePhaseLive[0];
   
+        //Compare phase lenght to expected frame lengths and update counts
+      if ( (frameLive > frameGoal[0]) && (frameLive < frameGoal[1]) ){             //If phase between upper and lower limits of frame target, target count++
+        frameCount[4]++;
+      }else if (frameLive <= frameGoal[0]) {                                                //If phase >= target lower limit, check frameUnder times
+        if(frameLive > frameUnder[0]){                                                          //If phase > frame-1 lower limit, frame-1++
+          frameCount[3]++;
+        }else if (frameLive > frameUnder[1]){                                                   //If phase > frame-2 lower limit, frame-2++
+          frameCount[2]++;
+        }else if (frameLive > frameUnder[2]){                                                   //If phase > frame-3 lower limit, frame-3++
+          frameCount[1]++;
+        }else{                                                                                         //Else phase must be <= frame-3 lower limit, >frame-3++
+          frameCount[0]++;
+        }
+      }else if (frameLive >= frameGoal[1]) {
+      //If phase <= target upper limit, check frameUnder times
+        if(frameLive < frameOver[0]){                                                           //If phase < frame+1 upper limit, frame-1++
+          frameCount[5]++;
+        }else if (frameLive < frameOver[1]){                                                    //If phase < frame+2 upper limit, frame-2++
+          frameCount[6]++;
+        }else if (frameLive < frameOver[2]){                                                    //If phase < frame+3 upper limit, frame-3++
+          frameCount[7]++;
+        }else{                                                                                         //Else phase must be >= frame+3 upper limit, >frame-3++
+          frameCount[8]++;
+        }
+      }
+    }else{
+      frameCount[8]++;
+    }
         //Update trigger flags
       phaseUpdateFlag = true;         //Tell ISRwaveCalc() to update data 
       waveStartFlag = false;          //False until reset on next rising edge for error prevention  
