@@ -23,7 +23,8 @@ unsigned long volatile waveStartLast = 0;           //Time micros last rising ed
 unsigned long volatile wavePeriodLive[5] = {0,0xFFFFFFFF,0,0,0};        //{Period update: current, min, max, total for avg, count for avg}
 unsigned long volatile wavePhaseLive[5] = {0,0xFFFFFFFF,0,0,0};         //{Phase update: current, min, max, total for avg, count for avg}
 unsigned long volatile waveErrorCount = 0;          //Total number of time mismatch errors detected. 
-bool volatile waveStartFlag = false;                //For checking active wave status and error correction.
+bool volatile waveStartFlag = false;                //For checking active wave status and error detection.
+bool volatile waveEndFlag = false;                  //For error detection
 bool volatile phaseUpdateFlag = false;              //For checking completed phase duration update status.
 bool volatile periodUpdateFlag = false;             //For checking completed period duration update status.
 bool volatile waveResetFlag = true;                 //For checking recent reset. Suppresses phase data update until second rising edge.   
@@ -47,8 +48,9 @@ float static ISRwaveData[4][4];                                             //xP
                                                                             //xDuty     {     ,     ,     ,     }
 
     //Tracks wave update state in ISRwaveCalc() to update display.
-byte static waveStatus = 0;                                                 //0=Extended LOW, 1=Extended HIGH, 2=Recent Phase update
-bool static calcUpdateFlag = false;
+byte static waveStatus = 0;                               //0=Extended LOW, 1=Extended HIGH, 2=Recent Phase update
+bool static calcUpdateFlag = false;                       //True if ISRwaveData values updated since reset. 
+                                                            //Used to prevent min/max float values causing string overflow and program crash. 
 
 /*
   //Storage for ADCwave data
@@ -62,7 +64,7 @@ unsigned long static analogUpdateCount = 0;
 
 
   //Tells mode functions to print mode label to reduce unnecessary lcd writes. Must start TRUE
-bool static modeSwitchFlag = true;                                                                                                                                        //For reducing unnecessary lcd print cycles. 
+bool static modeSwitchFlag = true;                  //For reducing unnecessary lcd print cycles. 
 
   //Threshold global variables
 const byte threshOutPin = 6;                        //Threshold PWM output pin
@@ -111,42 +113,108 @@ void setup() {
   waveReset();
 }
 
+/* 
+ *  
+ *  
+ * ***Interrupt handling behavior in microcontroller and code*** 
+ *  
+ * If an interrupt request triggers during normal conditions, the microcontroller will just to the ISR as soon as the present machine code operation has completed and resume the next machine code after ISR is completed. 
+ * If an interrupt request triggers while interrupts are disabled (time between "noInterrupts();" and "interrupts();"), the ISR will launch immediately after interrupts are re-enabled. 
+ * If multiple interrupt requests are placed while interrupts are disabled, ISR's execute in order of their priority. 
+ * Interrupts are disabled automatically while an ISR is running and re-enabled upon completion. 
+ * If addional and/or multiple interrupt requests trigger while an ISR is running, newly requested ISRs will run sequentially in priority order until all request are cleared.   
+ *  
+ * Microcontroller reset request has highest priority (IRQ priority 0). 
+ * Falling edge interrupt has higher priority (INT0, IRQ priority 1) than rising edge (INT1, IRQ priority 2). 
+ * This will improve phase time accuracy by updating data as quickly as possible and preventing errors in calculation if rising and falling both trigger while interrupts are disabled.  
+ *  
+ * All global variables used in ISR must be declared volatile. 
+ * This tells the compiler they must be stored in and addressed from program DDR RAM (as opposed to a SD RAM processor cache register) at all times because they can be updated at any time. 
+ * This also prevents them from being optimized away by the compiler if it does not appear they would be updated within the loop. 
+ * Volatile variable >1byte should be addressed "atomically" (interrupts detached or disabled) to prevent error in value if ISR is called while variable is being used. 
+ * Volatile variables take longer to address (DDR RAM speed vs SD cache speed), so making a standard data type copy can allow for faster successive calls and further manipulation at the cost of storage and real time accuracy. 
+ *  
+ * ***ISR reset detection logic.***  
+ * 
+ * waveReset() resests default values and sets waveResetFlag. 
+ *   Interrupts disabled during reset. Interrupt request flags are cleared to prevent immediate launch of ISR if edge detected while interrupts disabled. 
+ * 
+ * First interrupt after reset: 
+ * 
+ *  If rising edge: 
+ *    waveStartISR fails waveResetFlag conditional check. 
+ *    Else condition clears waveResetFlag and sets waveStartFlag allowing waveEndISR to pass conditional checks at next falling edge. 
+ *    Wave start time saved for the next period calculation. 
+ *  If falling edge:
+ *    waveEndISR fails waveResetFlag conditional check. 
+ *    Set waveEndFlag to allow waveStartISR to beging updating after waveResetFlag has cleared.  
+ * 
+ * This prevents an update to period and phase data until after the first rising edge is detected so calculations are not made with old data. 
+ * 
+ * ***ISR wave calculation and error detection logic. (After waveResetFlag has been cleared) ***
+ *   
+ * waveStartISR: 
+ *   If waveEndFlag check passes:
+ *      Update start time for current period and next phase calcualtions. 
+ *      Update period calculations. 
+ *      Set waveStartFlag for waveEndISR error check and wave status update in loop.  
+ *      Set periodUpdateFlag to trigger further calculation in loop. 
+ *      Clear waveEndFlag for waveStartISR error detection. 
+ *      Save start time for next period calculation. 
+ *   If waveEndFlag failes: 
+ *      Error detected. Two rising edges detected without a falling edge. 
+ *      Save start time for next period calculation. 
+ * waveEndISR:
+ *   If waveStartFlag check passes:
+ *      Update phase and frame calculations. 
+ *      Set waveEndFlag for waveStartISR error check.  
+ *      Clear waveStartFlag for waveEndISR error detection. 
+ *   If waveStartFlag failes: 
+ *      Error detected. Two falling edges detected without a rising edge. 
+ * 
+ */
 
 void waveStartISR(){
-   // Start wave timing. Rising edge ISR. Digital pin 2
-   // Update Start flag and time. Set stop flag to 0 for error reduction. 
+   // Start wave timing for phase and period calculations. Rising edge ISR. Digital pin 2 
    
-  waveStartTime = micros();
+  waveStartTime = micros();                
 
+    //Check if waveResetFlag has been cleared. If flag still true, only store time for next cycle calculation. 
   if(waveResetFlag == false){                                   //Skip first Period calc after reset to capture full rise to rise time. 
-    if( waveStartTime > waveEndTime ){                            //Time comparison for error prevention
-      
-    wavePeriodLive[0] = (waveStartTime - waveStartLast);                //Update period lenght micros
+    
+      //Check flag to detect error. Update period times if passes. 
+      //Else increment error count. Two rising edges triggered without a falling edge. 
+    if(waveEndFlag == true){
 
-          //Update period min
-    if( wavePeriodLive[0] < wavePeriodLive[1] ){
-      wavePeriodLive[1] = wavePeriodLive[0];
-    }    
+        //Update period length micros
+      wavePeriodLive[0] = (waveStartTime - waveStartLast);                
   
+        //Update period min
+      if( wavePeriodLive[0] < wavePeriodLive[1] ){
+        wavePeriodLive[1] = wavePeriodLive[0];
+      }    
+    
         //Update period max
-    if( wavePeriodLive[0] > wavePeriodLive[2] ){
-      wavePeriodLive[2] = wavePeriodLive[0];
-    } 
-
-      //Update running totals for averaging
-    wavePeriodLive[3] += wavePeriodLive[0];
-    wavePeriodLive[4]++;    
-
-      //Update period comparision time. Set flag to trigger period update in ISRwaveCalc(). 
-    waveStartLast = waveStartTime;                     
-    periodUpdateFlag = true;
-    }
-    else{
-    waveErrorCount++;                       //Increment error count
+      if( wavePeriodLive[0] > wavePeriodLive[2] ){
+        wavePeriodLive[2] = wavePeriodLive[0];
+      } 
+  
+        //Update running totals for averaging
+      wavePeriodLive[3] += wavePeriodLive[0];
+      wavePeriodLive[4]++;    
+  
+        //Update trigger flags and time for next period calculation.   
+      waveStartLast = waveStartTime;          //Store time for next period calculation           
+      periodUpdateFlag = true;                //Set flag to trigger update in IRSwaveCalc()
+      waveEndFlag = false;                    //False until reset on next falling edge for error prevention  
+    }else{
+      waveErrorCount++;                         //Increment error count
+      waveStartLast = waveStartTime;            //Update time for next period calculation
     }
   }
   else{
-    waveStartLast = waveStartTime;           //Update time for first period calc after reset
+    waveStartLast = waveStartTime;            //Update time for first period calc after reset
+    waveResetFlag = false;                    //Clear reset flag to allow new updates.  
   }
   
   waveStartFlag = true;                     //Set flag to be check in waveEndISR(). 
@@ -154,39 +222,44 @@ void waveStartISR(){
 }
 
 void waveEndISR(){
-  // End wave timing. Falling edge ISR. Digital pin 3
-  // Verify start flag and positive time difference. Update total wave time.
+  // End wave timing for phase and frame calculations. Falling edge ISR. Digital pin 3
 
   waveEndTime = micros();
 
-    //Update values after error prevention check
-  if( (waveStartFlag == true) && (waveEndTime - waveStartTime >= 0) ){          //Check for rising edge update and compare times for error prevention
+  if(waveResetFlag == false){
 
-    wavePhaseLive[0] = (waveEndTime - waveStartTime);           //Update phase length micros  
+      //Check flag to detect error. Update phase times if passes. 
+      //Else increment error count. Two falling edges triggered without a rising edge. 
+    if( (waveStartFlag == true){
 
-      //Update phase min
-    if( wavePhaseLive[0] < wavePhaseLive[1] ){
-      wavePhaseLive[1] = wavePhaseLive[0];
-    }    
+        //Update phase length micros
+      wavePhaseLive[0] = (waveEndTime - waveStartTime);             
   
+        //Update phase min
+      if( wavePhaseLive[0] < wavePhaseLive[1] ){
+        wavePhaseLive[1] = wavePhaseLive[0];
+      }    
+    
         //Update phase max
-    if( wavePhaseLive[0] > wavePhaseLive[2] ){
-      wavePhaseLive[2] = wavePhaseLive[0];
+      if( wavePhaseLive[0] > wavePhaseLive[2] ){
+        wavePhaseLive[2] = wavePhaseLive[0];
+      } 
+  
+        //Update running totals for averaging
+      wavePhaseLive[3] += wavePhaseLive[0];
+      wavePhaseLive[4]++;    
+  
+        //Update trigger flags
+      phaseUpdateFlag = true;         //Tell ISRwaveCalc() to update data 
+      waveStartFlag = false;          //False until reset on next rising edge for error prevention  
     } 
-
-      //Update running totals for averaging
-    wavePhaseLive[3] += wavePhaseLive[0];
-    wavePhaseLive[4]++;    
-
-      //Set trigger flags
-    phaseUpdateFlag = true;         //Tell ISRwaveCalc() to update data
-    waveStartFlag = false;          //False until reset on next rising edge for error prevention
-    waveResetFlag = false;          //Set false to indicate 
-  } 
-  else{
-    waveStartFlag = false;          //Error detected. Reset rising edge flag until next update.
-    waveErrorCount++;               //Increment error count
+    else{
+      waveErrorCount++;               //Increment error count
+    }
   }
+  
+  waveEndFlag = true;                 //Set flag to be check in waveStartISR(). 
+  
 }
 
 
