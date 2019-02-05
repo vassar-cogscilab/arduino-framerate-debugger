@@ -1041,11 +1041,13 @@ void ppfdSub(byte currModeVal, byte deciSub){
 void analogWaveMain(){
 
     //Sample and measurement control variables
-  unsigned long startTime;
   unsigned int currAnaWave = 0;
   unsigned int minAnaWave = 0xFFFF;
   unsigned int maxAnaWave = 0; 
-  const byte sampleMillis = 100; 
+  unsigned long startTime;
+  byte loopCount = 0;
+  const byte sampleMillis = 50;
+  const byte sampleLoops = 3;
 
     //Printing control variables
   String stCurrMin;
@@ -1055,8 +1057,6 @@ void analogWaveMain(){
   byte static stPrevMinLength = 0;
   byte static stPrevMaxLength = 0;
 
-    //Update start time of loop
-  startTime = millis();
 
       //Print mode label if mode has changed.  Set in modeSwitch().
   if(modeSwitchFlag == true){
@@ -1065,24 +1065,29 @@ void analogWaveMain(){
   lcd.setCursor(0,1);
   lcd.print("Wave -Peak:");
   }
+
   
-    //Sample analog wave for set time period and check for button press.
-    //Cycles 42 to 43 times per 100ms loop. Average sample rate of 420Hz is suitable for sampling signals <=140Hz. Best for <=84Hz. 
-  while( (currButton == 0) && (millis() - startTime < sampleMillis) ){
+    //Sample analog wave sampleLoops times for sampleMillis duration. Check for button press between loops.
+    //Averages 445 times per 50ms loop. Average 1325 times per 3 loops over average 156mS. 
+    //Single sample loop specs: 50mS samples width @ 8.9kHz sample rate is ideal for sampling signals from 20Hz to 890Hz. (based on continuous wave frequency period width at 10 samples per period)
+    //Total sample loop specs: 156mS sample width @ 8.5kHz average sample rate is suitable for signals from 6.4Hz to 2.2kHz. (Based on continuous wave frequency period width at 4 samples per period)
+    //Testing performed with no input to cause interrupt ISR requests. Specs will be negatively impacted by interrupt delays.
+  while( (currButton == 0) && (loopCount < sampleLoops) ){
 
-    currAnaWave = analogRead(analogWavePin);
-
-    if (currAnaWave > maxAnaWave){
-      maxAnaWave = currAnaWave;
+    startTime = millis();                                   //Update start time of loop
+      
+    while( millis() - startTime < sampleMillis ){           //Sample analog wave and update min/max values
+      currAnaWave = analogRead(analogWavePin);  
+      if (currAnaWave > maxAnaWave){
+        maxAnaWave = currAnaWave;
+      }else if (currAnaWave < minAnaWave){
+        minAnaWave = currAnaWave;
+      }
     }
-    
-    if (currAnaWave < minAnaWave){
-      minAnaWave = currAnaWave;
-    }
 
-    buttonCheck();
+    loopCount++;                                            //Increment loop count
+    buttonCheck();                                          //Check for button press to exit and respond to requests. 
   }
-
 
       //Set string values for printing  
   if (minAnaWave == 0xFFFF){     //Set to string to "0" if min not updated
