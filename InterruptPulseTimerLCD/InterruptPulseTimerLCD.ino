@@ -530,7 +530,7 @@ void buttonCheck() {
 }
 
 
-int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0, bool enableExtraBoost = true){
+int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0, byte boostMode = 0){
   // Loop through sub modes with buttons. Maintain currSub else. Cycle speed increased once if held 
     //Button functions: (bUp = Sub++), (bDown = Sub--) 
     //Takes current sub mode and total number of sub modes from passing function. Returns updated current sub mode. 
@@ -547,15 +547,19 @@ int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0, bool ena
     //Check button state and update control variables.
   if( currButton != 0 ){
 
-       //Set subValChange based on hold cycle count. Increases value change speed if button is held. 
+       //Set subValChange based on hold cycle count and mode parameter. Increases value change speed if button is held. 
     if (holdCycles > cyclesExtraBoost ){
-      if (enableExtraBoost == true){
+      if (boostMode == 0){
         subValChange = 100;
       }else{
-        subValChange = 10;
+        subValChange = 5;
       }
     }else if (holdCycles > cyclesBeforeBoost ){
-      subValChange = 10;
+      if (boostMode == 0){
+        subValChange = 10;
+      }else{
+        subValChange = 2;
+      }
     }else {
       subValChange = 1;
     }
@@ -632,7 +636,7 @@ void threshMain(){
   stPrevPhaseLength = stCurrPhaseLength;
 
 
-  threshOut = subSwitch(threshOut, 255, 0, 0);      //Update threshold setting with Up/Down buttons. max value 250, min value 10. Disable x100 boosted change rate. 
+  threshOut = subSwitch(threshOut, 255, 0, 1);      //Update threshold setting with Up/Down buttons. max value 250, min value 10. Disable x100 boosted change rate. 
 
   analogWrite(threshOutPin, threshOut);             //Set sub mode changes
   
