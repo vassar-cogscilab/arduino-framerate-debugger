@@ -606,6 +606,7 @@ void threshMain(){
   unsigned int threshSampleSum = 0;             //Running total of sample values to be divided by number of loops for averaging
   unsigned int threshSampleAvg = 0;             //Average result of samples to be printed. 
 
+
     //Print mode label if mode has changed.  Set in modeSwitch().
   if(modeSwitchFlag == true){
   lcd.setCursor(0,0);
@@ -614,11 +615,13 @@ void threshMain(){
   lcd.print("Phase mS:");
   }
 
+
+    //Take measurements of threshold analog value and produce average. 
   for(unsigned int i= 0; i < sampleLoops; i++){
     threshSampleSum += analogRead(threshInPin);
-  }
-
+  }  
   threshSampleAvg = threshSampleSum / sampleLoops;
+
 
     //Set string values for printing
   stThresh = String(threshSampleAvg);
@@ -638,6 +641,7 @@ void threshMain(){
     lcd.print("       ");
   }
 
+
     //Print string values and update control variables
   lcd.setCursor(10,0);
   lcd.print(stThresh);
@@ -647,8 +651,8 @@ void threshMain(){
   stPrevPhaseLength = stCurrPhaseLength;
 
 
+    //Update and output new PWM threshold setting value. 
   threshOut = subSwitch(threshOut, 255, 0, 1);      //Update threshold setting with Up/Down buttons. max value 250, min value 10. Disable x100 boosted change rate. 
-
   analogWrite(threshOutPin, threshOut);             //Set sub mode changes
   
   
