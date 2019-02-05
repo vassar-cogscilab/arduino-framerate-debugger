@@ -1039,6 +1039,7 @@ void ppfdSub(byte currModeVal, byte deciSub){
 
 
 void analogWaveMain(){
+  //Measure and display analog wave min and max analogRead values. Displays values after a series of sample loops with a button check between each to maintain user experience. 
 
     //Sample and measurement control variables
   unsigned int currAnaWave = 0;
@@ -1047,7 +1048,7 @@ void analogWaveMain(){
   unsigned long startTime;
   byte loopCount = 0;
   const byte sampleMillis = 50;
-  const byte sampleLoops = 3;
+  const byte sampleLoops = 4;
 
     //Printing control variables
   String stCurrMin;
@@ -1067,11 +1068,10 @@ void analogWaveMain(){
   }
 
   
-    //Sample analog wave sampleLoops times for sampleMillis duration. Check for button press between loops.
-    //Averages 445 times per 50ms loop. Average 1325 times per 3 loops over average 156mS. 
-    //Single sample loop specs: 50mS samples width @ 8.9kHz sample rate is ideal for sampling signals from 20Hz to 890Hz. (based on continuous wave frequency period width at 10 samples per period)
-    //Total sample loop specs: 156mS sample width @ 8.5kHz average sample rate is suitable for signals from 6.4Hz to 2.2kHz. (Based on continuous wave frequency period width at 4 samples per period)
-    //Testing performed with no input to cause interrupt ISR requests. Specs will be negatively impacted by interrupt delays.
+    //Sample analog wave (sampleLoops) times for (sampleMillis) duration. Check for button press between loops.
+    //Averages 445 times per 50ms. Testing performed with no input to cause interrupt ISR requests. Specs will be negatively impacted by interrupt delays.
+    //Single sample loop specs: 50mS samples width @ 8.9kHz sample rate is ideal for sampling signals from 20Hz to 890Hz. (based on continuous wave input at 10 samples per period minimum)
+    //Overal sample specs: Suitable for signals from 5Hz to 2.2kHz. (Based on 4 loops and continuous wave input at 4 samples per period minimum)
   while( (currButton == 0) && (loopCount < sampleLoops) ){
 
     startTime = millis();                                   //Update start time of loop
