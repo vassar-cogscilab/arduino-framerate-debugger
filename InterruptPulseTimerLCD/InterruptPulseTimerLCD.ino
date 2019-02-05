@@ -642,7 +642,8 @@ int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
   
   unsigned int static holdCycles = 0;           //Current count of cycles while button is held
   byte static subValChange = 1;                 //Number to increment/decrement subVal. Increases if hold cycle check passes. 
-  byte const cyclesBeforeBoost = 25;            //Number of cycles to count before boosted speed begins. 
+  byte const cyclesBeforeBoost = 25;            //Number of cycles to count before boosted speed begins.
+  byte const cyclesExtraBoost = 50;             //Number of cycles to count before extra boost applied. 
   
   
 
@@ -651,7 +652,9 @@ int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
   if( currButton != 0 ){
 
        //Set subValChange based on hold cycle count. Increases value change speed if button is held. 
-    if (holdCycles > cyclesBeforeBoost ){
+    if (holdCycles > cyclesExtraBoost ){
+      subValChange = 100;
+    }else if (holdCycles > cyclesBeforeBoost ){
       subValChange = 10;
     }else {
       subValChange = 1;
