@@ -780,7 +780,7 @@ void frameRateMain(){
 
     //Print labels
   lcd.setCursor(0,0);
-  lcd.print("Set F rate:     ");
+  lcd.print("Set F Rate:     ");
   lcd.setCursor(0,1);
   lcd.print("[SELECT] to save");
 
@@ -808,11 +808,70 @@ void frameRateMain(){
 
       
       //Update newFrameRate setting with Up/Down buttons. max value 20,000Hz, min value 1Hz
+      //Min and max numbers selected to be within devices error free frequency range. 
     newFrameRate = subSwitch(newFrameRate, 20000, 1);       
 
       //Check for save request. 
     if(currButton == bSelect){
       frameRate = newFrameRate;         //Save local loop variable value to global control variable. 
+      waveReset();                      //Run waveReset to recalculate values and clear data
+      break;    
+    }
+
+      //Update button control value and keep background wave data current. 
+    buttonCheck();
+    ISRwaveCalc();
+  }
+}
+
+
+void frameGoalMain(){
+  //Change and set display frame count goal setting for frame count calculations. 
+
+  int newFrameGoal;
+  String stGoal;
+  byte stCurrGoalLength = 0;
+  byte stPrevGoalLength = 0;
+
+    //Copy current frame rate value for reference. 
+  newFrameGoal = frameGoalNum;
+
+    //Print labels
+  lcd.setCursor(0,0);
+  lcd.print("Set Goal F#:    ");
+  lcd.setCursor(0,1);
+  lcd.print("[SELECT] to save");
+
+
+    //Perform rate adjustments.  
+    //While loop with local variables used to prevent accidental changes and to force waveReset after changes accepted. 
+    //Mode switches without value changes saved if bLeft or bRight. 
+  while( (currButton != bLeft) && (currButton != bRight) ){
+
+      //Set string value for printing
+    stGoal = String(newFrameGoal);
+    
+      //Update current value string length. Clear value display if character length decreased. 
+      //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)     
+    stCurrGoalLength = stGoal.length();
+    if(stCurrGoalLength < stPrevGoalLength){
+      lcd.setCursor(12,0);
+      lcd.print("    ");
+    }
+
+      //Print string value and update for next loop comparison
+    lcd.setCursor(12,0);
+    lcd.print(stGoal);
+    stPrevGoalLength = stCurrGoalLength;
+
+      
+      //Update newFrameRate setting with Up/Down buttons. max value 2,000 frames, min value 1 frame
+      //Min and max numbers selected to keep possible values for frameGoal, frameOver, and frameUnder inside signed long valid range. 
+    newFrameGoal = subSwitch(newFrameGoal, 2000, 1);       
+
+      //Check for save request. 
+    if(currButton == bSelect){
+      frameGoalNum = newFrameGoal;      //Save local loop variable value to global control variable. 
       waveReset();                      //Run waveReset to recalculate values and clear data
       break;    
     }
@@ -1107,14 +1166,15 @@ void modeSwitch(){
   
  
     //Mode list. Values set rotation order. ***Must be zero referenced and sequential*** 
-  const byte mainThresh = 0;                                                            //Threshold setting and signal min/max measurement
-  const byte mainFrameRate = 1;
-  const byte mainFrameCount = 2;                                                        //Frame counts vs goal measurement mode. 
-  const byte mainPhase = 3;                                                             //Phase measurement mode
-  const byte mainPeriod = 4;                                                            //Period measurement mode
-  const byte mainFreq = 5;                                                              //Frequency measurement mode 
-  const byte mainDuty = 6;                                                              //Duty cycle measurement mode
-  const byte maxMainVal = 6;                                                            //Total number of modes (below mode list count, zero ) 
+  const byte mainThresh = 0;                                                            //Threshold settings and signal min/max measurement
+  const byte mainFrameRate = 1;                                                         //Frame rate settings
+  const byte mainFrameGoal = 2;                                                         //Frame count goal settings
+  const byte mainFrameCount = 3;                                                        //Frame counts vs goal measurement mode. 
+  const byte mainPhase = 4;                                                             //Phase measurement mode
+  const byte mainPeriod = 5;                                                            //Period measurement mode
+  const byte mainFreq = 6;                                                              //Frequency measurement mode 
+  const byte mainDuty = 7;                                                              //Duty cycle measurement mode
+  const byte maxMainVal = 7;                                                            //Total number of modes (below mode list count, zero ) 
                                                    
   if( currButton != 0 ){
     if( millis() - lastModeSwitch >= modeSwitchDelay){      //Check if minimum switch delay is met for more controlled switching. 
@@ -1170,6 +1230,9 @@ void modeSwitch(){
           break;
     case mainFrameRate:
           frameRateMain();
+          break;
+    case mainFrameGoal:
+          frameGoalMain();
           break;
     default:
           lcd.setCursor(0,0);
