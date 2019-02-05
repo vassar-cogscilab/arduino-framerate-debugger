@@ -40,8 +40,6 @@ int frameRate = 60;
 int frameGoalNum = 2; 
 
 
-
-
   // Storage for ISRwave data. 
   // Updated in: ISRwaveCalc(), waveReset()
   // Used in: ISRwaveCalc(), waveReset(), phaseMain(), periodMain(), freqMain()
@@ -64,18 +62,7 @@ float static ISRwaveData[4][4];                                             //xP
 byte static waveStatus = 0;                               //0=Extended LOW, 1=Extended HIGH, 2=Recent Phase update
 bool static calcUpdateFlag = false;                       //True if ISRwaveData values updated since reset. 
                                                             //Used to prevent min/max float values causing string overflow and program crash. 
-
-/*
-  //Storage for ADCwave data
-const byte minADC = 0;
-const byte maxADC = 1;
-const byte halfADC = 2;
-int static ADCwaveData[3] = {1023,0,0};                       //{minADC, maxADC, halfADC}
-int static ADCwaveToPWM = 0;                                  //Quarter wave height mapped to PWM value for threshold recommendation.
-unsigned long static analogUpdateCount = 0;
-*/
-
-
+                                                            
   //Tells mode functions to print mode label to reduce unnecessary lcd writes. Must start TRUE
 bool static modeSwitchFlag = true;                  //For reducing unnecessary lcd print cycles. 
 
@@ -233,6 +220,7 @@ void waveStartISR(){
   waveStartFlag = true;                       //Set flag to be check in waveEndISR(). 
   
 }
+
 
 void waveEndISR(){
   // End wave timing for phase and frame calculations. Falling edge ISR. Digital pin 3
@@ -423,7 +411,6 @@ void ISRwaveCalc(){
   }
 
 }
-
 
 
 void waveReset(){
@@ -791,6 +778,7 @@ void frameGoalMain(){
   }
 }
 
+
 void frameCountMain(){
 
 
@@ -1146,7 +1134,6 @@ void analogWaveMain(){
     //Prevent label from reprinting until next mode change. 
   modeSwitchFlag = false;    
 }
-
 
 
 void modeSwitch(){
