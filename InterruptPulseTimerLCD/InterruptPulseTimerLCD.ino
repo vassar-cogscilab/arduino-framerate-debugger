@@ -794,41 +794,44 @@ void frameCountMain(){
     lcd.setCursor(0,1);
     switch (currSubMode){
       case frUnderMoreThan3:
-            lcd.print("F# < G-3:       ");     
+            lcd.print("<Goal-3:        ");
+            cursorSub = 8;     
             break;
       case frUnder3:
-            lcd.print("F# = G-3:       ");
+            lcd.print("Goal-3:         ");
+            cursorSub = 7;
             break;
       case frUnder2:
-            lcd.print("F# = G-2:       ");
+            lcd.print("Goal-2:         ");
+            cursorSub = 7;
             break;
       case frUnder1:
-            lcd.print("F# = G-1:       ");
+            lcd.print("Goal-1:         ");
+            cursorSub = 7;
             break;
       case frGoal:
-            lcd.print("F# = G:         ");
+            lcd.print("=Goal:          ");
+            cursorSub = 6;
             break;
       case frOver1:
-            lcd.print("F# = G+1:       ");
+            lcd.print("Goal+1:         ");
+            cursorSub = 7;
             break;  
       case frOver2:
-            lcd.print("F# = G+2:       ");
+            lcd.print("Goal+2:         ");
+            cursorSub = 7;
             break;
       case frOver3:
-            lcd.print("F# = G+3:       ");
+            lcd.print("Goal+3:         ");
+            cursorSub = 7;
             break;
       case frOverMoreThan3:
-            lcd.print("F# > G+3:       ");
+            lcd.print(">Goal+3:        ");
+            cursorSub = 8;
             break;
     }
-
-      //Set cursor position variable based on label length
-    if(currSubMode == frGoal){
-      cursorSub = 7;
-    }else{
-      cursorSub = 9;
-    }
   }
+
 
     //Print current count for selected mode
   lcd.setCursor(cursorSub, 1);
