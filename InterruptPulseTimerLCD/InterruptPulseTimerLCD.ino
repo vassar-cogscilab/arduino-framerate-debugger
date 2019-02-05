@@ -171,8 +171,8 @@ void setup() {
  * 
  */
 
-void waveStartISR(){
-   // Start wave timing for phase and period calculations. Rising edge ISR. Digital pin 2 
+void waveStartISR(){      // Start wave timing for phase and period calculations. Rising edge ISR. Digital pin 3 
+   
 
   unsigned long static waveStartLast = 0;         //Store previous start time for period calculation
    
@@ -221,8 +221,8 @@ void waveStartISR(){
 }
 
 
-void waveEndISR(){
-  // End wave timing for phase and frame calculations. Falling edge ISR. Digital pin 3
+void waveEndISR(){      // End wave timing for phase and frame calculations. Falling edge ISR. Digital pin 2
+  
   
   long frameLive;
   unsigned long waveEndTime;
@@ -309,8 +309,8 @@ void loop() {
 }
 
 
-void ISRwaveCalc(){
-  //Recalculate wave data taken from ISR's if updated
+void ISRwaveCalc(){     //Recalculate wave data taken from ISR's if updated
+  
 
   unsigned long static lastPhaseUpdate = 0;                                       //Time millis since last phase update
   unsigned long waveMicrosCopy[5] = {0,0xFFFFFFFF,0,0,0};                          //For quickly copying current data without conversion
@@ -334,7 +334,7 @@ void ISRwaveCalc(){
 
       //Convert unsigned long micros to float millis
     for (byte i=0; i<4; i++){
-    ISRwaveData[xPhase][i] = waveMicrosCopy[i];                       //Convert unsigned long (val, min, max, average) to float
+    ISRwaveData[xPhase][i] = waveMicrosCopy[i];                         //Convert unsigned long (val, min, max, average) to float
     ISRwaveData[xPhase][i] = ISRwaveData[xPhase][i] * 0.001;            //Convert float micros to float millis
     }
 
@@ -412,8 +412,8 @@ void ISRwaveCalc(){
 }
 
 
-void waveReset(){
-  //Reset all wave data to default values
+void waveReset(){     //Update frame count control variables and reset all wave data to default values
+  
   
   lcd.clear();
 
@@ -500,8 +500,8 @@ void waveReset(){
 }
 
    
-void buttonCheck() {
-  //Set button value as byte variable
+void buttonCheck() {      //Set button value as byte variable
+  
   
   uint8_t buttons = lcd.readButtons();
   
@@ -529,8 +529,7 @@ void buttonCheck() {
 }
 
 
-int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0, byte boostMode = 0){
-  // Loop through sub modes with buttons. Maintain currSub else. Cycle speed increased once if held 
+int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0, byte boostMode = 0){      // Loop through sub modes with buttons. Maintain currSub else. Cycle speed increased once if held 
     //Button functions: (bUp = Sub++), (bDown = Sub--) 
     //Takes current sub mode and total number of sub modes from passing function. Returns updated current sub mode. 
   
@@ -591,7 +590,7 @@ int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0, byte boo
 }
 
 
-void threshMain(){
+void threshMain(){      //Threshold settings and current analog value display 
 
     //Print control variables
   String stThresh;
@@ -661,8 +660,8 @@ void threshMain(){
 }
 
 
-void frameRateMain(){
-  //Change and set display frame rate setting for frame count calculations. 
+void frameRateMain(){     //Frame rate settings and current value display for frame count calculations. 
+  
 
   int newFrameRate;
   String stRate;
@@ -719,8 +718,7 @@ void frameRateMain(){
 }
 
 
-void frameGoalMain(){
-  //Change and set display frame count goal setting for frame count calculations. 
+void frameGoalMain(){     //Frame count goal number settings and current value display for frame count calculations. 
 
   int newFrameGoal;
   String stGoal;
@@ -777,7 +775,7 @@ void frameGoalMain(){
 }
 
 
-void frameCountMain(){
+void frameCountMain(){      //Display setting for frame count results
 
 
   byte static currSubMode = 4;                                                          //Store current sub mode. (Value sets boot default)
@@ -861,8 +859,8 @@ void frameCountMain(){
 }
 
 
-void ppfdMain(byte modeReq = 0){
-  //Phase, Period, Frequency, and Duty modes top print line display settings
+void ppfdMain(byte modeReq = 0){      //Phase, Period, Frequency, and Duty modes top print line display settings
+  
   
 
     //Store previous and current value string lengths. For clearing field if length reduces. 
@@ -951,8 +949,8 @@ void ppfdMain(byte modeReq = 0){
 }
 
 
-void ppfdSub(byte currModeVal, byte deciSub){
-  //Phase, Period, Frequency, and Duty modes bottom print line display settings
+void ppfdSub(byte currModeVal, byte deciSub){     //Phase, Period, Frequency, and Duty modes bottom print line display settings
+  
 
   byte static currSubMode = 0;                                                         //Store current sub mode. (Value sets boot default)
   const byte subMin = 0;                                                                //Display min value
@@ -1055,8 +1053,8 @@ void ppfdSub(byte currModeVal, byte deciSub){
 }
 
 
-void analogWaveMain(){
-  //Measure and display analog wave min and max analogRead values. Displays values after a series of sample loops with a button check between each to maintain user experience. 
+void analogWaveMain(){      //Measure and display analog wave min and max analogRead values. 
+  //Displays values after a series of sample loops with a button check between each to maintain user experience. 
 
     //Sample and measurement control variables
   unsigned int currAnaWave = 0;
@@ -1142,9 +1140,8 @@ void analogWaveMain(){
 }
 
 
-void modeSwitch(){
-  // Loop through modes or reset wave stats with buttons. Clear display after any button press. Maintain currMainMode else. 
-    //Button functions: (bRight = Main++), (bLeft = Main--), (bSelect = Reset stats). 
+void modeSwitch(){      // Loop through modes or reset wave stats with buttons.  Maintain currMainMode else. 
+  //Button functions: (bRight = Main++), (bLeft = Main--), (bSelect = Reset stats). Clear display after any accepted input.
 
     //Mode switch control variables.
   int static currMainMode = 0;                                                          //Store current main mode. Initial value is starting mode after reboot. 
