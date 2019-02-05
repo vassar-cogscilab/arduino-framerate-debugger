@@ -593,12 +593,18 @@ int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0, byte boo
 
 void threshMain(){
 
+    //Print control variables
   String stThresh;
   String stPhase;
   byte stCurrThreshLength = 0;
   byte stCurrPhaseLength = 0;
   byte static stPrevThreshLength = 0;
   byte static stPrevPhaseLength = 0;
+
+    //Thresh sample variables. 
+  const unsigned int sampleLoops = 60;          //Number for samples to be taken. Must be <64 to prevent possible overflow of threshSampleSum unsigned int value 
+  unsigned int threshSampleSum = 0;             //Running total of sample values to be divided by number of loops for averaging
+  unsigned int threshSampleAvg = 0;             //Average result of samples to be printed. 
 
     //Print mode label if mode has changed.  Set in modeSwitch().
   if(modeSwitchFlag == true){
@@ -608,8 +614,14 @@ void threshMain(){
   lcd.print("Phase mS:");
   }
 
+  for(unsigned int i= 0; i < sampleLoops; i++){
+    threshSampleSum += analogRead(threshInPin);
+  }
+
+  threshSampleAvg = threshSampleSum / sampleLoops;
+
     //Set string values for printing
-  stThresh = String(analogRead(threshInPin));
+  stThresh = String(threshSampleAvg);
   stPhase = String(ISRwaveData[xPhase][xVal], 2);
 
 
