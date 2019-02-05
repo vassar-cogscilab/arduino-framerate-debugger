@@ -17,9 +17,7 @@ byte static currButton = 0;
   // Volatile global variables for waveStartISR() and waveEndISR() Interrupt Service Routines (ISRs). ***All variables used in interrupt ISRs must be global and volatile.***
   // Updated in: waveStartISR(), waveEndISR(), waveReset()
   // Used in: waveStartISR(), waveEndISR(), ISRwaveCalc(), phaseMain(), periodMain()
-unsigned long volatile waveStartTime = 0;           //Time micros for rising edge
-//unsigned long volatile waveEndTime = 0;             //Time micros for falling edge
-unsigned long volatile waveStartLast = 0;           //Time micros last rising edge
+unsigned long volatile waveStartTime = 0;           //Time micros for rising edge. Needed for both period and phase calculations. 
 unsigned long volatile wavePeriodLive[5] = {0,0xFFFFFFFF,0,0,0};        //{Period update: current, min, max, total for avg, count for avg}
 unsigned long volatile wavePhaseLive[5] = {0,0xFFFFFFFF,0,0,0};         //{Phase update: current, min, max, total for avg, count for avg}
 unsigned long volatile waveErrorCount = 0;          //Total number of time mismatch errors detected. 
@@ -131,6 +129,7 @@ void setup() {
  * This also prevents them from being optimized away by the compiler if it does not appear they would be updated within the loop. 
  * Volatile variable >1byte should be addressed "atomically" (interrupts detached or disabled) to prevent error in value if ISR is called while variable is being used. 
  * Volatile variables take longer to address (RAM speed vs cache speed), so making a standard data type copy can allow for faster successive calls and further manipulation at the cost of storage and real time accuracy. 
+ * Local variables within ISR should be declared normally (not volatile) for best performance. 
  *  
  * ***ISR reset detection logic.***  
  * 
@@ -174,6 +173,8 @@ void setup() {
 
 void waveStartISR(){
    // Start wave timing for phase and period calculations. Rising edge ISR. Digital pin 2 
+
+  unsigned long static waveStartLast = 0;         //Store previous start time for period calculation
    
   waveStartTime = micros();                
 
