@@ -34,12 +34,6 @@ long volatile frameGoal[2] = {12500, 20832};                               //tar
 long volatile frameUnder[3] = {-4166, -20832, -37498};                       //target -1frame, -2frames, -3frames. lower limits. 
 long volatile frameOver[3] = {37489, 54164, 70830};                          //target +1frame, +2frames, +3frames. upper limits. 
 
-
-  //Current frame rate and goal frame number
-int frameRate = 60;
-int frameGoalNum = 2; 
-
-
   // Storage for ISRwave data. 
   // Updated in: ISRwaveCalc(), waveReset()
   // Used in: ISRwaveCalc(), waveReset(), phaseMain(), periodMain(), freqMain()
@@ -73,6 +67,10 @@ byte static threshOut;                              //Threshold PWM output setti
 
   //Analog wave sense global variables
 const byte analogWavePin = A0;                         //Analog wave sense pin
+
+  //Current frame rate and goal frame number
+int frameRate = 60;
+int frameGoalNum = 1; 
 
 
   //Delays for mode changes and status updates
