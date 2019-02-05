@@ -4,23 +4,20 @@
 #include <utility/Adafruit_MCP23017.h>
 Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
 
-  // Storage for button status. 
-  // Updated in: buttonCheck()
-  // Used in: buttonCheck(), modeSwitch()
+  //Storage for button status. 
+byte static currButton = 0;
 const byte bUp = 1;
 const byte bDown = 2;
 const byte bLeft = 3;
 const byte bRight = 4;
 const byte bSelect = 5;
-byte static currButton = 0;
+
 
   // Volatile global variables for waveStartISR() and waveEndISR() Interrupt Service Routines (ISRs). ***All variables used in interrupt ISRs must be global and volatile.***
-  // Updated in: waveStartISR(), waveEndISR(), waveReset()
-  // Used in: waveStartISR(), waveEndISR(), ISRwaveCalc(), phaseMain(), periodMain()
 unsigned long volatile waveStartTime = 0;           //Time micros for rising edge. Needed for both period and phase calculations. 
-unsigned long volatile wavePeriodLive[5] = {0,0xFFFFFFFF,0,0,0};        //{Period update: current, min, max, total for avg, count for avg}
-unsigned long volatile wavePhaseLive[5] = {0,0xFFFFFFFF,0,0,0};         //{Phase update: current, min, max, total for avg, count for avg}
-unsigned long volatile waveErrorCount = 0;          //Total number of time mismatch errors detected. 
+unsigned long volatile wavePeriodLive[5] = {0,0xFFFFFFFF,0,0,0};        //Period update from ISR: {current val, min, max, total for avg, count for avg}
+unsigned long volatile wavePhaseLive[5] = {0,0xFFFFFFFF,0,0,0};         //Phase update from ISR: {current val, min, max, total for avg, count for avg}
+unsigned long volatile waveErrorCount = 0;          //Total number of errors detected. 
 bool volatile waveStartFlag = false;                //For checking active wave status and error detection.
 bool volatile waveEndFlag = false;                  //For error detection
 bool volatile phaseUpdateFlag = false;              //For checking completed phase duration update status.
@@ -28,13 +25,12 @@ bool volatile periodUpdateFlag = false;             //For checking completed per
 bool volatile waveResetFlag = true;                 //For checking recent reset. Suppresses phase data update until second rising edge.   
 
 unsigned long volatile frameCount[9] = {0,0,0,0,0,0,0,0,0};                 //Store current frame counts. {>f-3, f-3, f-2, f-1, f, f+1, f+2, f+3, >f+3}
-long volatile frameGoal[2] = {12500, 20832};                               //target frame length upper and lower limits. Default values for 60Hz frame rate with 1 frame target. 
-long volatile frameUnder[3] = {-4166, -20832, -37498};                       //target -1frame, -2frames, -3frames. lower limits. 
-long volatile frameOver[3] = {37489, 54164, 70830};                          //target +1frame, +2frames, +3frames. upper limits. 
+long volatile frameGoal[2] = {12500, 20832};                                //target frame length upper and lower limits. Default values for 60Hz frame rate with 1 frame target. 
+long volatile frameUnder[3] = {-4166, -20832, -37498};                      //target -1frame, -2frames, -3frames. lower limits. 
+long volatile frameOver[3] = {37489, 54164, 70830};                         //target +1frame, +2frames, +3frames. upper limits. 
 
-  // Storage for ISRwave data. 
-  // Updated in: ISRwaveCalc(), waveReset()
-  // Used in: ISRwaveCalc(), waveReset(), phaseMain(), periodMain(), freqMain()
+
+  // Storage for ISRwave data. All current phase, period, freq, and duty data. Initialized in setup() via waveReset(). 
 const byte xPhase =0;
 const byte xPeriod =1;
 const byte xFreq =2;
@@ -42,18 +38,20 @@ const byte xDuty = 3;
 const byte xVal =0;
 const byte xMin =1;
 const byte xMax = 2;
-const byte xAvg = 3;                  
-    //All current phase, period, freq, and duty data. Initialized in setup() via waveReset(). 
-                                                                            //            xVal, xMin, xMax, xAvg
-float static ISRwaveData[4][4];                                             //xPhase    {     ,     ,     ,     }
-                                                                            //xPeriod   {     ,     ,     ,     }
-                                                                            //xFreq     {     ,     ,     ,     }
-                                                                            //xDuty     {     ,     ,     ,     }
+const byte xAvg = 3;                                                                                            
+float static ISRwaveData[4][4];                                             
+								  //            xVal, xMin, xMax, xAvg                                           
+								  //xPhase    {     ,     ,     ,     }                                                                          
+								  //xPeriod   {     ,     ,     ,     }                                                                          
+								  //xFreq     {     ,     ,     ,     }
+								  //xDuty     {     ,     ,     ,     }
 
+
+  
     //Tracks wave update state in ISRwaveCalc() to update display.
 byte static waveStatus = 0;                               //0=Extended LOW, 1=Extended HIGH, 2=Recent Phase update
 bool static calcUpdateFlag = false;                       //True if ISRwaveData values updated since reset. 
-                                                            //Used to prevent min/max float values causing string overflow and program crash. 
+                                                              //Used to prevent min/max float values causing string overflow and program crash. 
                                                             
   //Tells mode functions to print mode label to reduce unnecessary lcd writes. Must start TRUE
 bool static modeSwitchFlag = true;                  //For reducing unnecessary lcd print cycles. 
@@ -67,16 +65,16 @@ byte static threshOut;                              //Threshold PWM output setti
 const byte analogWavePin = A0;                         //Analog wave sense pin
 
   //Current frame rate and goal frame number
-int frameRate = 60;
-int frameGoalNum = 1; 
+int frameRate = 60;                         //Store current frame rate settings. Should match refresh rate Hz of monitor under test. 
+int frameGoalNum = 1;                       //Store current goal number of frames for a test. 
 
 
   //Delays for mode changes and status updates
-const unsigned int modeSwitchDelay = 150;                    // Min millis between menu changes.
+const unsigned int modeSwitchDelay = 150;             // Min millis between menu changes.
 //const int modeSplashDelay = 1300;                   // Max millis to display mode config information on mode switch.
 //const long modeSplashMax = 180000;                  // Max millis total run time to allow splash to display on mode switch. 
-const int offResetDelay = 10000;                    // Delay millis to hold data on screen before displaying OFF message.
-unsigned long static lastModeSwitch = 0;            //Millis since last mode switch. 
+const int offResetDelay = 10000;                      // Delay millis to hold data on screen before displaying OFF message.
+unsigned long static lastModeSwitch = 0;              //Millis since last mode switch. 
 
 
 void setup() {
