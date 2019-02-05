@@ -127,10 +127,10 @@ void setup() {
  * This will improve phase time accuracy by updating data as quickly as possible and preventing errors in calculation if rising and falling both trigger while interrupts are disabled.  
  *  
  * All global variables used in ISR must be declared volatile. 
- * This tells the compiler they must be stored in and addressed from program DDR RAM (as opposed to a SD RAM processor cache register) at all times because they can be updated at any time. 
+ * This tells the compiler they must be stored in and addressed from program RAM (as opposed to the processor cache) at all times because they can be updated at any time. 
  * This also prevents them from being optimized away by the compiler if it does not appear they would be updated within the loop. 
  * Volatile variable >1byte should be addressed "atomically" (interrupts detached or disabled) to prevent error in value if ISR is called while variable is being used. 
- * Volatile variables take longer to address (DDR RAM speed vs SD cache speed), so making a standard data type copy can allow for faster successive calls and further manipulation at the cost of storage and real time accuracy. 
+ * Volatile variables take longer to address (RAM speed vs cache speed), so making a standard data type copy can allow for faster successive calls and further manipulation at the cost of storage and real time accuracy. 
  *  
  * ***ISR reset detection logic.***  
  * 
@@ -257,7 +257,7 @@ void waveEndISR(){
     if( wavePhaseLive[0] < 0x7FFFFFFF ){
       frameLive = wavePhaseLive[0];
   
-        //Compare phase lenght to expected frame lengths and update counts
+        //Compare phase length to expected frame lengths and update counts
       if ( (frameLive > frameGoal[0]) && (frameLive < frameGoal[1]) ){             //If phase between upper and lower limits of frame target, target count++
         frameCount[4]++;
       }else if (frameLive <= frameGoal[0]) {                                                //If phase >= target lower limit, check frameUnder times
@@ -774,7 +774,7 @@ void frameCountMain(){
   const byte frOver3 = 7;                                                               //Display number of frames equal to goal +3
   const byte frOverMoreThan3 = 8;                                                       //Display number of frames above goal +3 
 
-  byte static cursorSub;                                                                //Cursor postion to print selected value. 
+  byte static cursorSub;                                                                //Cursor position to print selected value. 
 
                                                        
 
