@@ -424,84 +424,7 @@ void ISRwaveCalc(){
 
 }
 
-/*   ADCwaveCalc
-void ADCwaveCalc(){
-  unsigned long startTime;
-  unsigned int currAnaWave = 0;
-  unsigned int minAnaWave = 0xFFFF;
-  unsigned int maxAnaWave = 0; 
-  const byte sampleMillis = 100; 
 
-  String stCurrMin;
-  String stCurrMax;
-  byte stCurrMinLength;
-  byte stCurrMaxLength;
-  byte static stPrevMinLength = 0;
-  byte static stPrevMaxLength = 0;
-
-  startTime = millis();
-  
-    //Sample analog wave and check for button press. 
-  while( (currButton != 0) && (millis() - startTime < sampleMillis) ){
-
-    currAnaWave = analogRead(analogWavePin);
-
-    if (currAnaWave > maxAnaWave){
-      maxAnaWave = currAnaWave;
-    }
-    
-    if (currAnaWave < minAnaWave){
-      minAnaWave = currAnaWave;
-    }
-
-    buttonCheck();
-  }
-
-    //Respond to mode change and reset requests. 
-  if ( (currButton == bLeft) || (currButton == bRight) || (currButton == bSelect) ){
-    modeSwitch();
-  }
-
-    //Print mode label if mode has changed.  Set in modeSwitch().
-  if(modeSwitchFlag == true){
-  lcd.setCursor(0,0);
-  lcd.print("Wave +Peak:");
-  lcd.setCursor(0,1);
-  lcd.print("Wave -Peak:");
-  }
-  
-
-      //Set string values for printing
-  stCurrMax = String(maxAnaWave);
-  stCurrMin = String(minAnaWave);
-
-
-    //Update current value string length. Clear value display if character length decreased. 
-    //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
-  stCurrMaxLength = stCurrMax.length();
-  stCurrMinLength = stCurrMin.length();
-  if (stCurrMaxLength < stPrevMaxLength){
-    lcd.setCursor(11,0);
-    lcd.print("     ");
-  }
-  if (stCurrMinLength < stPrevMinLength){
-    lcd.setCursor(11,1);
-    lcd.print("     ");
-  }
-
-    //Print string values
-  lcd.setCursor(11,0);
-  lcd.print(stCurrMax);
-  lcd.setCursor(11,1);
-  lcd.print(stCurrMin);
-
-  stPrevMaxLength = stCurrMaxLength;
-  stPrevMinLength = stCurrMinLength;
-
-    //Prevent label from reprinting until next mode change. 
-  modeSwitchFlag = false;    
-}
-*/
 
 void waveReset(){
   //Reset all wave data to default values
@@ -509,41 +432,27 @@ void waveReset(){
   lcd.clear();
 
  
- long frameGoalTemp[2];                        //For calculation. Store target frame phase length ±buffer upper and lower limits
- long frameUnderTemp[3];                       //For calculation. Store frame phase length buffered lower limits for f-1 through f-3
- long frameOverTemp[3];                        //For calculation. Store frame phase length buffered upper limits for f+1 through f+3
- 
- unsigned long frameLength = 1000000/ frameRate;         //Set target frame phase length in uS. 1/frameRate = frames/Sec. 1000000/frameRate = frames/uS. 
- unsigned long frameBuffer = frameLength >> 2;           //Buffer is 25% of frame rate. Allows for phase length tolerance from threshold and filter effects. 
-                                                           //Bitshift right 2 is equivalent to val/4 in unsigned integer types, but much faster. 
+  long frameGoalTemp[2];                        //For calculation. Store target frame phase length ±buffer upper and lower limits
+  long frameUnderTemp[3];                       //For calculation. Store frame phase length buffered lower limits for f-1 through f-3
+  long frameOverTemp[3];                        //For calculation. Store frame phase length buffered upper limits for f+1 through f+3
+   
+  unsigned long frameLength = 1000000/ frameRate;         //Set target frame phase length in uS. 1/frameRate = frames/Sec. 1000000/frameRate = frames/uS. 
+  unsigned long frameBuffer = frameLength >> 2;           //Buffer is 25% of frame rate. Allows for phase length tolerance from threshold and filter effects. 
+                                                             //Bitshift right 2 is equivalent to val/4 in unsigned integer types, but much faster. 
 
- Serial.println(frameLength);
- Serial.println(frameBuffer);
-                                                           
-                                                           
- frameGoalTemp[0] = (frameLength * frameGoalNum) - frameBuffer;       //For calculation. Set target frame phase length - buffered lower limit
- frameGoalTemp[1] = (frameLength * frameGoalNum) + frameBuffer;       //For calculation. Set target frame phase length + buffered upper limit
+    //Calculate new goal frame length min and max range
+  frameGoalTemp[0] = (frameLength * frameGoalNum) - frameBuffer;       //For calculation. Set target frame phase length - buffered lower limit
+  frameGoalTemp[1] = (frameLength * frameGoalNum) + frameBuffer;       //For calculation. Set target frame phase length + buffered upper limit
+  
+    //Calculate frame length for given number of undershot frames. Subtract one frame unbuffered frame length per. 
+  frameUnderTemp[0] = frameGoalTemp[0] - frameLength;
+  frameUnderTemp[1] = frameUnderTemp[0] - frameLength;
+  frameUnderTemp[2] = frameUnderTemp[1] - frameLength;
 
- Serial.println(frameGoalTemp[0]);
- Serial.println(frameGoalTemp[1]);
- 
- frameUnderTemp[0] = frameGoalTemp[0] - frameLength;
- frameUnderTemp[1] = frameUnderTemp[0] - frameLength;
- frameUnderTemp[2] = frameUnderTemp[1] - frameLength;
-
- Serial.println(frameUnderTemp[0]);
- Serial.println(frameUnderTemp[1]);
- Serial.println(frameUnderTemp[2]);
- 
- 
- frameOverTemp[0] = frameGoalTemp[1] + frameLength;
- frameOverTemp[1] = frameOverTemp[0] + frameLength;
- frameOverTemp[2] = frameOverTemp[1] + frameLength;
-
- Serial.println(frameOverTemp[0]);
- Serial.println(frameOverTemp[1]);
- Serial.println(frameOverTemp[2]);
-
+    //Calculate frame length for given number of overshot frames. Add one frame unbuffered frame length per. 
+  frameOverTemp[0] = frameGoalTemp[1] + frameLength;
+  frameOverTemp[1] = frameOverTemp[0] + frameLength;
+  frameOverTemp[2] = frameOverTemp[1] + frameLength;
   
     //reset live capture values and set reset flag. Disable interrupts to prevent error
   noInterrupts();
@@ -1157,6 +1066,89 @@ void ppfdSub(byte currModeVal, byte deciSub){
 }
 
 
+void analogWaveMain(){
+
+    //Sample and measurement control variables
+  unsigned long startTime;
+  unsigned int currAnaWave = 0;
+  unsigned int minAnaWave = 0xFFFF;
+  unsigned int maxAnaWave = 0; 
+  const byte sampleMillis = 100; 
+
+    //Printing control variables
+  String stCurrMin;
+  String stCurrMax;
+  byte stCurrMinLength;
+  byte stCurrMaxLength;
+  byte static stPrevMinLength = 0;
+  byte static stPrevMaxLength = 0;
+
+    //Update start time of loop
+  startTime = millis();
+
+      //Print mode label if mode has changed.  Set in modeSwitch().
+  if(modeSwitchFlag == true){
+  lcd.setCursor(0,0);
+  lcd.print("Wave +Peak:");
+  lcd.setCursor(0,1);
+  lcd.print("Wave -Peak:");
+  }
+  
+    //Sample analog wave for set time period and check for button press.
+    //Cycles 42 to 43 times per 100ms loop. Average sample rate of 420Hz is suitable for sampling signals <=140Hz. Best for <=84Hz. 
+  while( (currButton == 0) && (millis() - startTime < sampleMillis) ){
+
+    currAnaWave = analogRead(analogWavePin);
+
+    if (currAnaWave > maxAnaWave){
+      maxAnaWave = currAnaWave;
+    }
+    
+    if (currAnaWave < minAnaWave){
+      minAnaWave = currAnaWave;
+    }
+
+    buttonCheck();
+  }
+
+
+      //Set string values for printing  
+  if (minAnaWave == 0xFFFF){     //Set to string to "0" if min not updated
+    stCurrMax = " ";
+    stCurrMin = " ";
+  }else{
+  stCurrMax = String(maxAnaWave);
+  stCurrMin = String(minAnaWave);
+  }
+
+    //Update current value string length. Clear value display if character length decreased. 
+    //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
+  stCurrMaxLength = stCurrMax.length();
+  stCurrMinLength = stCurrMin.length();
+  if (stCurrMaxLength < stPrevMaxLength){
+    lcd.setCursor(11,0);
+    lcd.print("     ");
+  }
+  if (stCurrMinLength < stPrevMinLength){
+    lcd.setCursor(11,1);
+    lcd.print("     ");
+  }
+
+    //Print string values
+  lcd.setCursor(11,0);
+  lcd.print(stCurrMax);
+  lcd.setCursor(11,1);
+  lcd.print(stCurrMin);
+
+  stPrevMaxLength = stCurrMaxLength;
+  stPrevMinLength = stCurrMinLength;
+
+    //Prevent label from reprinting until next mode change. 
+  modeSwitchFlag = false;    
+}
+
+
+
 void modeSwitch(){
   // Loop through modes or reset wave stats with buttons. Clear display after any button press. Maintain currMainMode else. 
     //Button functions: (bRight = Main++), (bLeft = Main--), (bSelect = Reset stats). 
@@ -1174,7 +1166,8 @@ void modeSwitch(){
   const byte mainPeriod = 5;                                                            //Period measurement mode
   const byte mainFreq = 6;                                                              //Frequency measurement mode 
   const byte mainDuty = 7;                                                              //Duty cycle measurement mode
-  const byte maxMainVal = 7;                                                            //Total number of modes (below mode list count, zero ) 
+  const byte mainAnaWave =8;                                                            //Analog wave measurement mode. 
+  const byte maxMainVal = 8;                                                            //Total number of modes (below mode list count, zero ) 
                                                    
   if( currButton != 0 ){
     if( millis() - lastModeSwitch >= modeSwitchDelay){      //Check if minimum switch delay is met for more controlled switching. 
@@ -1233,6 +1226,9 @@ void modeSwitch(){
           break;
     case mainFrameGoal:
           frameGoalMain();
+          break;
+    case mainAnaWave:
+          analogWaveMain();
           break;
     default:
           lcd.setCursor(0,0);
