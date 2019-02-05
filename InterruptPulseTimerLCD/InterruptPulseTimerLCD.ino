@@ -387,10 +387,10 @@ void ISRwaveCalc(){
 
 
       //Update frequency data. Freq Hz = (1000 / (period in milliseconds) ). 
-    ISRwaveData[xFreq][xVal] = ( 1000 / (ISRwaveData[xPeriod][xVal]) );          //Current frequency Hz = 1/ (Current period time in seconds).
-    ISRwaveData[xFreq][xMin] = ( 1000 / (ISRwaveData[xPeriod][xMax]) );          //Min frequency Hz = 1/ (Max period time in seconds). Freq and period are inversely related
-    ISRwaveData[xFreq][xMax] = ( 1000 / (ISRwaveData[xPeriod][xMin]) );          //Max frequency Hz = 1/ (Min period time in seconds). Freq and period are inversely related       
-    ISRwaveData[xFreq][xAvg] = ( 1000 / (ISRwaveData[xPeriod][xAvg]) );          //Average frequency Hz = 1/ (Average period time in seconds).
+    ISRwaveData[xFreq][xVal] = ( 1000 / (ISRwaveData[xPeriod][xVal]) );          //Current frequency Hz = 1000/ (Current period time in milliseconds).
+    ISRwaveData[xFreq][xMin] = ( 1000 / (ISRwaveData[xPeriod][xMax]) );          //Min frequency Hz = 1000/ (Max period time in milliseconds). Freq and period are inversely related
+    ISRwaveData[xFreq][xMax] = ( 1000 / (ISRwaveData[xPeriod][xMin]) );          //Max frequency Hz = 1000/ (Min period time in milliseconds). Freq and period are inversely related       
+    ISRwaveData[xFreq][xAvg] = ( 1000 / (ISRwaveData[xPeriod][xAvg]) );          //Average frequency Hz = 1000/ (Average period time in milliseconds).
 
 
       //Update duty cycle data
@@ -884,8 +884,8 @@ void ppfdMain(byte modeReq = 0){
             lcd.setCursor(0,0);
             lcd.print("Freq. Hz:");
             cursorMain = 9;
-            deciMain = 0;
-            deciSub = 0;
+            deciMain = 1;
+            deciSub = 2;
             currModeVal = xFreq;
             break;
       case 3:
