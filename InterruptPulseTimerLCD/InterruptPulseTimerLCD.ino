@@ -530,7 +530,7 @@ void buttonCheck() {
 }
 
 
-int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
+int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0, bool enableExtraBoost = true){
   // Loop through sub modes with buttons. Maintain currSub else. Cycle speed increased once if held 
     //Button functions: (bUp = Sub++), (bDown = Sub--) 
     //Takes current sub mode and total number of sub modes from passing function. Returns updated current sub mode. 
@@ -549,7 +549,11 @@ int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0){
 
        //Set subValChange based on hold cycle count. Increases value change speed if button is held. 
     if (holdCycles > cyclesExtraBoost ){
-      subValChange = 100;
+      if (enableExtraBoost == true){
+        subValChange = 100;
+      }else{
+        subValChange = 10;
+      }
     }else if (holdCycles > cyclesBeforeBoost ){
       subValChange = 10;
     }else {
@@ -619,41 +623,16 @@ void threshMain(){
     lcd.print("       ");
   }
 
-    //Print string values
+    //Print string values and update control variables
   lcd.setCursor(10,0);
   lcd.print(stThresh);
   lcd.setCursor(9,1);
   lcd.print(stPhase);
-
   stPrevThreshLength = stCurrThreshLength;
   stPrevPhaseLength = stCurrPhaseLength;
 
 
-  threshOut = subSwitch(threshOut, 255, 0);             //Update threshold setting with Up/Down buttons. max value 250, min value 10
-
-/*  old threshold setting behavior
-    //Check for threshold setting updates
-  if( currButton != 0 ){
-    if( millis() - lastModeSwitch >= modeSwitchDelay){      //Check if minimum switch delay is met for more controlled switching. 
-      switch (currButton){
-        case bUp:
-              if (threshOut != 255){
-                threshOut++;
-              }
-              break;
-        case bDown:
-              if (threshOut != 0){
-                threshOut--;
-              }
-              break;
-      }
-    analogWrite(threshOutPin, threshOut);             //Set sub mode changes
-    lastModeSwitch = millis();
-        
-    }
-  }
-
-*/
+  threshOut = subSwitch(threshOut, 255, 0, 0);      //Update threshold setting with Up/Down buttons. max value 250, min value 10. Disable x100 boosted change rate. 
 
   analogWrite(threshOutPin, threshOut);             //Set sub mode changes
   
