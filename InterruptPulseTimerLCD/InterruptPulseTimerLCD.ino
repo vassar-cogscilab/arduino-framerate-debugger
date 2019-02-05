@@ -129,7 +129,7 @@ void setup() {
  * This also prevents them from being optimized away by the compiler if it does not appear they would be updated within the loop. 
  * Volatile variable >1byte should be addressed "atomically" (interrupts detached or disabled) to prevent error in value if ISR is called while variable is being used. 
  * Volatile variables take longer to address (RAM speed vs cache speed), so making a standard data type copy can allow for faster successive calls and further manipulation at the cost of storage and real time accuracy. 
- * Local variables within ISR should be declared normally (not volatile) for best performance. 
+ * Local variables within ISR should be declared normally (not volatile) for best performance and scope protection. 
  *  
  * ***ISR reset detection logic.***  
  * 
@@ -386,11 +386,11 @@ void ISRwaveCalc(){
     ISRwaveData[xPeriod][xAvg] /= waveMicrosCopy[4];                   //Phase avg = total millis / total counts
 
 
-      //Update frequency data. Convert period to seconds and calculate frequency. Freq Hz = 1/ (period time in seconds).
-    ISRwaveData[xFreq][xVal] = ( 1 / (ISRwaveData[xPeriod][xVal] * 0.001) );          //Current frequency Hz = 1/ (Current period time in seconds).
-    ISRwaveData[xFreq][xMin] = ( 1 / (ISRwaveData[xPeriod][xMax] * 0.001) );          //Min frequency Hz = 1/ (Max period time in seconds). Freq and period are inversely related
-    ISRwaveData[xFreq][xMax] = ( 1 / (ISRwaveData[xPeriod][xMin] * 0.001) );          //Max frequency Hz = 1/ (Min period time in seconds). Freq and period are inversely related       
-    ISRwaveData[xFreq][xAvg] = ( 1 / (ISRwaveData[xPeriod][xAvg] * 0.001) );          //Average frequency Hz = 1/ (Average period time in seconds).
+      //Update frequency data. Freq Hz = (1000 / (period in milliseconds) ). 
+    ISRwaveData[xFreq][xVal] = ( 1000 / (ISRwaveData[xPeriod][xVal]) );          //Current frequency Hz = 1/ (Current period time in seconds).
+    ISRwaveData[xFreq][xMin] = ( 1000 / (ISRwaveData[xPeriod][xMax]) );          //Min frequency Hz = 1/ (Max period time in seconds). Freq and period are inversely related
+    ISRwaveData[xFreq][xMax] = ( 1000 / (ISRwaveData[xPeriod][xMin]) );          //Max frequency Hz = 1/ (Min period time in seconds). Freq and period are inversely related       
+    ISRwaveData[xFreq][xAvg] = ( 1000 / (ISRwaveData[xPeriod][xAvg]) );          //Average frequency Hz = 1/ (Average period time in seconds).
 
 
       //Update duty cycle data
