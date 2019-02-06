@@ -111,23 +111,56 @@ void setup() {
  *  
  *  
  * ***Interrupt handling behavior in microcontroller and code*** 
- *  
- * If an interrupt request triggers during normal conditions, the microcontroller will just to the ISR as soon as the present machine code operation has completed and resume the next machine code after ISR is completed. 
- * If an interrupt request triggers while interrupts are disabled (time between "noInterrupts();" and "interrupts();"), the ISR will launch immediately after interrupts are re-enabled. 
+ * 
+ * General behavior:
+ * If an interrupt request triggers during normal conditions, the program will jump to the ISR (Interrupt Service Routine) as soon as the present operation has completed. 
+ * The program will resume at the next operation after the ISR is completed. 
+ * Operations are on the assembly and machine code level, not the higher level language written. 
+ * This allows for the fewest number of clock cycle possible for an ISR to begin, with usual response times on the order of <10uSec for most platforms and clock rates. (<3uSec for the ATmega328P @16MHz).  
+ * 
+ * 
+ * Conditional behavior:
+ * If an interrupt request triggers while interrupts are disabled (time between "noInterrupts();" and "interrupts(); or while another ISR is active"), the ISR will launch immediately after interrupts are re-enabled. 
  * If multiple interrupt requests are placed while interrupts are disabled, ISR's execute in order of their priority. 
  * Interrupts are disabled automatically while an ISR is running and re-enabled upon completion. 
  * If additional and/or multiple interrupt requests trigger while an ISR is running, newly requested ISRs will run sequentially in priority order until all request are cleared.   
- *  
- * Microcontroller reset request has highest priority (IRQ priority 0). 
+ * 
+ * Microcontroller reset requests have highest priority (IRQ priority 0). 
  * Falling edge interrupt has higher priority (INT0, IRQ priority 1) than rising edge (INT1, IRQ priority 2). 
  * This will improve phase time accuracy by updating data as quickly as possible and preventing errors in calculation if rising and falling both trigger while interrupts are disabled.  
+ * Full list of interrupt vector priorities is available in the microcontroller datasheet.  
+ *  
+ *  
+ * Coding considerations:  
+ * "noInterrupts();" and "interrupts();" commands are global, meaning they affect all internal and external interrupt vectors. 
+ * "attachInterrupt()" and "detachInterrupt()" will only affect the individual interrupt vector. 
+ * Disabling an interrupt only ignores the request to run the ISR. It does no clear the request flag. The ISR will run as soon as the interrupt is enabled regardless of how long it has been since the request. 
+ * Request flags can be manually cleared to prevent immediate ISR launch after enabling the interrupt. See the datasheet for details. (used in waveReset() for this program) 
+ * 
+ * Some software functions built into the microcontroller and Arduino environment also run on interrupts (e.g. Millis(), "delay();" and Serial communications). 
+ * Software interrupt functionality may be affected by long or frequent ISR calls. They cannot be used within an ISR or during "noInterrupts();". 
+ * The value of "millis();" can be retrieved, but it will not increment while interrupts are disabled. 
+ * Global interrupts can be enabled during an ISR, but it should be avoided as it may lead to recursive ISR calls and/or longer ISR run times.  
+ *  
+ * ISRs should be written with clock cycles for execution in mind. 
+ * Division takes significantly longer than addition, subtraction, or multiplication. Floating point math takes longer than integer math. Floating point and division should be avoided in an ISR whenever possible. 
+ * Conditional checks should be as simple as possible. Avoid loops. Remember that compound comparisons (i.e. ">=" and "<=" ) have more overhead than direct comparisons (i.e. "==", "!=", ">", "<" ). 
+ *  
+ * Due to interrupts injecting themselves between lower level assembly instructions, additional considerations must be made for how data is addressed and protected.  
+ * This can be important to keep in mind as evaluating a 32bit variable on an 8bit platform will take several operations to complete.  
+ * Without controls in place, a value may be altered or have changes overwritten/negated if an ISR.  
+ * Volatile variable >1byte should be addressed "atomically" (interrupts detached or disabled) to prevent error in value if ISR is called while variable is being used by the main program. 
+ * (Some volatile value calls for creating a print string in this program are not done atomically as a small inaccuracy for a single print cycle seemed better than disabling interrupts more frequently)
  *  
  * All global variables used in ISR must be declared volatile. 
  * This tells the compiler they must be stored in and addressed from program RAM (as opposed to the processor cache) at all times because they can be updated at any time. 
- * This also prevents them from being optimized away by the compiler if it does not appear they would be updated within the loop. 
- * Volatile variable >1byte should be addressed "atomically" (interrupts detached or disabled) to prevent error in value if ISR is called while variable is being used. 
- * Volatile variables take longer to address (RAM speed vs cache speed), so making a standard data type copy can allow for faster successive calls and further manipulation at the cost of storage and real time accuracy. 
+ * This also prevents them from being optimized away by the compiler if it does not appear they would be addressed or updated within the program. 
+ * Volatile variables take longer to address (RAM speed vs cache speed), so making a standard data type local copy can allow for faster successive calls and further manipulation at the cost of storage and real time accuracy. 
  * Local variables within ISR should be declared normally (not volatile) for best performance and scope protection. 
+ * 
+ * More information on Arduino interrupts can be found at http://www.gammon.com.au/interrupts and the microcontroller datasheet.  
+ * ATmega329P datasheet for Arduino Uno (page 49-54):http://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcontrollers-ATmega328P_Datasheet.pdf
+ *  
  *  
  * ***ISR reset detection logic.***  
  * 
@@ -1084,7 +1117,7 @@ void analogWaveMain(){      //Measure and display analog wave min and max analog
     //Sample analog wave (sampleLoops) times for (sampleMillis) duration. Check for button press between loops.
     //Averages 445 times per 50ms. Testing performed with no input to cause interrupt ISR requests. Specs will be negatively impacted by interrupt delays.
     //Single sample loop specs: 50mS samples width @ 8.9kHz sample rate is ideal for sampling signals from 20Hz to 890Hz. (based on continuous wave input at 10 samples per period minimum)
-    //Overal sample specs: Suitable for signals from 5Hz to 2.2kHz. (Based on 4 loops and continuous wave input at 4 samples per period minimum)
+    //Overall sample specs: Suitable for signals from 5Hz to 2.2kHz. (Based on 4 loops and continuous wave input at 4 samples per period minimum)
   while( (currButton == 0) && (loopCount < sampleLoops) ){
 
     startTime = millis();                                   //Update start time of loop
