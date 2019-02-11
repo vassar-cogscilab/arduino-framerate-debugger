@@ -148,7 +148,7 @@ void setup() {
  *  
  * Due to interrupts injecting themselves between lower level assembly instructions, additional considerations must be made for how data is addressed and protected.  
  * This can be important to keep in mind as evaluating a 32bit variable on an 8bit platform will take several operations to complete.  
- * Without controls in place, a value may be altered or have changes overwritten/negated if an ISR.  
+ * Without controls in place, a value may be altered or have changes overwritten/negated if an ISR writes to it while the main program is using it.
  * Volatile variable >1byte should be addressed "atomically" (interrupts detached or disabled) to prevent error in value if ISR is called while variable is being used by the main program. 
  * (Some volatile value calls for creating a print string in this program are not done atomically as a small inaccuracy for a single print cycle seemed better than disabling interrupts more frequently)
  *  
