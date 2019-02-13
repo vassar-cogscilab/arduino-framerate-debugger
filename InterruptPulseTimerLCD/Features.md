@@ -5,7 +5,7 @@
 	* Stage 1 adjustment is found in the upper middle of the signal conditioning board. It is set once to establish the maximum output and resolution of stage 2. 
 	* Stage 2 adjustment is located on the front left edge of the conditioning board. This controls the signal levels for the threshold comparators. 
 * **Low pass filter:** The built in adjustable low pass filter makes signal measurement more reliable when 100% brightness cannot be used. Monitor settings below 100% brightness create high noise in the frame input signal. 
-	*Located behind the stage 2 amplifier adjustment on the front left edge of the conditioning board. Should be set to minimum when using 100% brightness monitor settings. 
+	* Located behind the stage 2 amplifier adjustment on the front left edge of the conditioning board. Should be set to minimum when using 100% brightness monitor settings. 
 * **Button inputs:** Primary user inputs located on the top LCD board. 
 	* Left/Right: Cycle through measurement display modes. 
 	* Up/Down: Change settings and measurement output types within display modes. 
