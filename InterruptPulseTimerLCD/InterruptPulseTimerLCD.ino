@@ -622,6 +622,39 @@ int subSwitch(int currSubVal = 0, int maxSubVal = 0, int minSubVal = 0, byte boo
 }
 
 
+void autoThresh(int sigMin = 0, int sigMax = 1023){
+  //Calculate and apply an optimal threhsold value based on current signal min and max. Reset wave data after. 
+
+  int sigDiff;              //Signal range difference between min and max 
+  int targetAna;            //Target analog value for threshold
+  int targetPWM;            //Target PWM value for threshold 
+  int sigDivide = 4;        //Value to divide range difference to find target threshold. (For thresh of 1/4 sig range, set to 4. For 1/3, set to 3. Etc. )
+
+
+    //Calculate and set new threshold value
+  sigDiff = sigMax - sigMin;                        //Find signal min/max range difference
+  targetAna = (sigDiff / sigDivide) + sigMin;       //Find target thresh analog value. Portion of signal range above signal min. 
+  targetPWM = map(targetAna, 0, 1023, 0, 255);      //Find target thresh PWM value. Map analog range to PWM range. 
+  threshOut = targetPWM;                            //Set global threshold variable to new target value
+  analogWrite(threshOutPin, threshOut);             //Set threshold PWM out to target value.
+
+  Serial.println(sigMin);
+  Serial.println(sigMax);
+  Serial.println(targetAna);
+  Serial.println(targetPWM);
+
+    //Display confirmation message. Delay to allow threshold value to stabilize. Reset wave data values after. 
+  lcd.clear();
+  lcd.setCursor(0,0); 
+  lcd.print("Auto-calibrating");
+  lcd.setCursor(0,1);
+  lcd.print("Threshold levels");
+  delay(3000);
+  waveReset(); 
+
+  modeSwitchFlag = true;                              //Trigger mode label reprint 
+}
+
 void threshMain(){      //Threshold settings and current analog value display 
 
     //Print control variables
@@ -1113,7 +1146,7 @@ void analogWaveMain(){      //Measure and display analog wave min and max analog
   lcd.print("Wave -Peak:");
   }
 
-  
+
     //Sample analog wave (sampleLoops) times for (sampleMillis) duration. Check for button press between loops.
     //Averages 445 times per 50ms. Testing performed with no input to cause interrupt ISR requests. Specs will be negatively impacted by interrupt delays.
     //Single sample loop specs: 50mS samples width @ 8.9kHz sample rate is ideal for sampling signals from 20Hz to 890Hz. (based on continuous wave input at 10 samples per period minimum)
@@ -1166,9 +1199,17 @@ void analogWaveMain(){      //Measure and display analog wave min and max analog
   stPrevMaxLength = stCurrMaxLength;
   stPrevMinLength = stCurrMinLength;
 
+
     //Prevent label from reprinting until next mode change. 
   modeSwitchFlag = false;    
+
+      //Run autothresh if select is pressed. 
+  if(currButton == bSelect){
+    autoThresh(minAnaWave, maxAnaWave); 
+  }
+
 }
+
 
 
 void modeSwitch(){      // Loop through modes or reset wave stats with buttons.  Maintain currMainMode else. 
