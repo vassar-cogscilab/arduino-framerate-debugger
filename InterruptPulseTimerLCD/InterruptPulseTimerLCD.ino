@@ -639,25 +639,28 @@ void autoThresh(int sigMin = 0, int sigMax = 1023){
   analogWrite(threshOutPin, threshOut);             //Set threshold PWM out to target value.
 
     //Display confirmation message. Delay to allow threshold value to stabilize. Reset wave data values after. 
+      //Minimum time for 99% stabile threshold: 1030mS (Due to RC lowpass filter with 10kΩ and 22uF)
   lcd.clear();
   lcd.setCursor(0,0); 
   lcd.print("Auto-calibrating");
   lcd.setCursor(0,1);
   lcd.print("Threshold levels");
-  delay(1500);
+  delay(900);
   lcd.clear(); 
   lcd.setCursor(0,0);
   lcd.print("New Thresh:");
-  delay(600);
+  delay(700);
   lcd.setCursor(11,0);
   lcd.print(String( analogRead(threshInPin) )); 
   lcd.setCursor(0,1); 
   lcd.print("Resetting data");
-  delay(700);
-  
-  waveReset(); 
+  delay(800);
 
-  modeSwitchFlag = true;                              //Trigger mode label reprint 
+    //Reset wave data
+  waveReset();              
+
+    //Trigger mode label reprint 
+  modeSwitchFlag = true;                              
 }
 
 void threshMain(){      //Threshold settings and current analog value display 
