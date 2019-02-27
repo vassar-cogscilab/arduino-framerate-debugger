@@ -1,3 +1,4 @@
+
 // include the library code:
 #include <Wire.h>
 #include <Adafruit_RGBLCDShield.h>
@@ -994,7 +995,6 @@ void ppfdSub(byte currModeVal, byte deciSub){     //Phase, Period, Frequency, an
   String stSubVal;
   byte stSubLength;
   byte static cursorSub;
-  unsigned long sampleCounts;
   unsigned long totalCounts;
 
 
@@ -1179,7 +1179,7 @@ void modeSwitch(){      // Loop through modes or reset wave stats with buttons. 
   
  
     //Mode list. Values set rotation order. ***Must be zero referenced and sequential*** 
-  const byte mainThresh = 0;                                                            //Threshold settings and signal min/max measurement
+  const byte mainAnaWave = 0;                                                            //Threshold settings and signal min/max measurement
   const byte mainFrameRate = 1;                                                         //Frame rate settings
   const byte mainFrameGoal = 2;                                                         //Frame count goal settings
   const byte mainFrameCount = 3;                                                        //Frame counts vs goal measurement mode. 
@@ -1187,7 +1187,7 @@ void modeSwitch(){      // Loop through modes or reset wave stats with buttons. 
   const byte mainPeriod = 5;                                                            //Period measurement mode
   const byte mainFreq = 6;                                                              //Frequency measurement mode 
   const byte mainDuty = 7;                                                              //Duty cycle measurement mode
-  const byte mainAnaWave =8;                                                            //Analog wave measurement mode. 
+  const byte mainThresh =8;                                                            //Analog wave measurement mode. 
   const byte maxMainVal = 8;                                                            //Total number of modes (below mode list count, zero ) 
                                                    
   if( currButton != 0 ){
