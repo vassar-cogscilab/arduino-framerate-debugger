@@ -638,8 +638,8 @@ void autoThresh(int sigMin = 0, int sigMax = 1023){
   threshOut = targetPWM;                            //Set global threshold variable to new target value
   analogWrite(threshOutPin, threshOut);             //Set threshold PWM out to target value.
 
-  Serial.println(sigMin);
   Serial.println(sigMax);
+  Serial.println(sigMin);
   Serial.println(targetAna);
   Serial.println(targetPWM);
 
@@ -649,7 +649,7 @@ void autoThresh(int sigMin = 0, int sigMax = 1023){
   lcd.print("Auto-calibrating");
   lcd.setCursor(0,1);
   lcd.print("Threshold levels");
-  delay(3000);
+  delay(2500);
   waveReset(); 
 
   modeSwitchFlag = true;                              //Trigger mode label reprint 
@@ -1121,9 +1121,11 @@ void analogWaveMain(){      //Measure and display analog wave min and max analog
   //Displays values after a series of sample loops with a button check between each to maintain user experience. 
 
     //Sample and measurement control variables
-  unsigned int currAnaWave = 0;
-  unsigned int minAnaWave = 0xFFFF;
-  unsigned int maxAnaWave = 0; 
+  unsigned int currAnaRead = 0;
+  unsigned int currAnaMin = 0xFFFF;
+  unsigned int currAnaMax = 0; 
+  unsigned int static prevAnaMin = 100;
+  unsigned int static prevAnaMax = 900; 
   unsigned long startTime;
   byte loopCount = 0;
   const byte sampleMillis = 50;
@@ -1156,11 +1158,11 @@ void analogWaveMain(){      //Measure and display analog wave min and max analog
     startTime = millis();                                   //Update start time of loop
       
     while( millis() - startTime < sampleMillis ){           //Sample analog wave and update min/max values
-      currAnaWave = analogRead(analogWavePin);  
-      if (currAnaWave > maxAnaWave){
-        maxAnaWave = currAnaWave;
-      }else if (currAnaWave < minAnaWave){
-        minAnaWave = currAnaWave;
+      currAnaRead = analogRead(analogWavePin);  
+      if (currAnaRead > currAnaMax){
+        currAnaMax = currAnaRead;
+      }else if (currAnaRead < currAnaMin){
+        currAnaMin = currAnaRead;
       }
     }
 
@@ -1168,44 +1170,44 @@ void analogWaveMain(){      //Measure and display analog wave min and max analog
     buttonCheck();                                          //Check for button press to exit and respond to requests. 
   }
 
-      //Set string values for printing  
-  if (minAnaWave == 0xFFFF){     //Set to string to "0" if min not updated
-    stCurrMax = " ";
-    stCurrMin = " ";
-  }else{
-  stCurrMax = String(maxAnaWave);
-  stCurrMin = String(minAnaWave);
-  }
-
-    //Update current value string length. Clear value display if character length decreased. 
-    //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
-  stCurrMaxLength = stCurrMax.length();
-  stCurrMinLength = stCurrMin.length();
-  if (stCurrMaxLength < stPrevMaxLength){
+    //Check if cycle loop completed and update values. Prevents update errors for autoThresh. 
+  if(loopCount == sampleLoops){
+        //Set string values for printing  
+    stCurrMax = String(currAnaMax);
+    stCurrMin = String(currAnaMin);
+  
+      //Update current value string length. Clear value display if character length decreased. 
+      //(Without this, a value change from "10" to "9" would display as "90" due to LCD leaving characters on if not addressed)
+    stCurrMaxLength = stCurrMax.length();
+    stCurrMinLength = stCurrMin.length();
+    if (stCurrMaxLength < stPrevMaxLength){
+      lcd.setCursor(11,0);
+      lcd.print("     ");
+    }
+    if (stCurrMinLength < stPrevMinLength){
+      lcd.setCursor(11,1);
+      lcd.print("     ");
+    }
+  
+      //Print string values
     lcd.setCursor(11,0);
-    lcd.print("     ");
-  }
-  if (stCurrMinLength < stPrevMinLength){
+    lcd.print(stCurrMax);
     lcd.setCursor(11,1);
-    lcd.print("     ");
+    lcd.print(stCurrMin);
+  
+    stPrevMaxLength = stCurrMaxLength;
+    stPrevMinLength = stCurrMinLength;
+    prevAnaMin = currAnaMin;
+    prevAnaMax = currAnaMax; 
   }
-
-    //Print string values
-  lcd.setCursor(11,0);
-  lcd.print(stCurrMax);
-  lcd.setCursor(11,1);
-  lcd.print(stCurrMin);
-
-  stPrevMaxLength = stCurrMaxLength;
-  stPrevMinLength = stCurrMinLength;
 
 
     //Prevent label from reprinting until next mode change. 
   modeSwitchFlag = false;    
 
-      //Run autothresh if select is pressed. 
+      //Run autothresh if select is pressed. Use most recent completed min/max values. 
   if(currButton == bSelect){
-    autoThresh(minAnaWave, maxAnaWave); 
+    autoThresh(prevAnaMin, prevAnaMax); 
   }
 
 }
