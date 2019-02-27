@@ -638,11 +638,6 @@ void autoThresh(int sigMin = 0, int sigMax = 1023){
   threshOut = targetPWM;                            //Set global threshold variable to new target value
   analogWrite(threshOutPin, threshOut);             //Set threshold PWM out to target value.
 
-  Serial.println(sigMax);
-  Serial.println(sigMin);
-  Serial.println(targetAna);
-  Serial.println(targetPWM);
-
     //Display confirmation message. Delay to allow threshold value to stabilize. Reset wave data values after. 
   lcd.clear();
   lcd.setCursor(0,0); 
@@ -1121,23 +1116,23 @@ void analogWaveMain(){      //Measure and display analog wave min and max analog
   //Displays values after a series of sample loops with a button check between each to maintain user experience. 
 
     //Sample and measurement control variables
-  unsigned int currAnaRead = 0;
-  unsigned int currAnaMin = 0xFFFF;
-  unsigned int currAnaMax = 0; 
-  unsigned int static prevAnaMin = 100;
-  unsigned int static prevAnaMax = 900; 
-  unsigned long startTime;
-  byte loopCount = 0;
-  const byte sampleMillis = 50;
-  const byte sampleLoops = 4;
+  unsigned int currAnaRead = 0;                   //Current analog read of signal value
+  unsigned int currAnaMin = 0xFFFF;               //Current minimum value. Default to max possible value until updated from sample loop
+  unsigned int currAnaMax = 0;                    //Current maximum value. Default to min possible value until updated from sample loop
+  unsigned int static prevAnaMin = 100;           //Prevous min value. Stores completed sample results. Default to ideal values until updated.
+  unsigned int static prevAnaMax = 900;           //Prevous max value. Stores completed sample results. Default to ideal values until updated.
+  unsigned long startTime;                        //Time Millis() of sample loop start
+  byte loopCount = 0;                             //Current number of completed sample loops
+  const byte sampleMillis = 50;                   //Length in millis for loop to run. 
+  const byte sampleLoops = 4;                     //Total number of sample loops to run. 
 
     //Printing control variables
-  String stCurrMin;
-  String stCurrMax;
-  byte stCurrMinLength;
-  byte stCurrMaxLength;
-  byte static stPrevMinLength = 0;
-  byte static stPrevMaxLength = 0;
+  String stCurrMin;                               //For printing current min value.
+  String stCurrMax;                               //For printing current max value. 
+  byte stCurrMinLength;                           //Length of current min value string. For clearing the display if necessary. 
+  byte stCurrMaxLength;                           //Length of current max value string. For clearing the display if necessary. 
+  byte static stPrevMinLength = 0;                //Length of previous min value string. For comparing to current length.  
+  byte static stPrevMaxLength = 0;                //Length of previous max value string. For comparing to current length. 
 
 
       //Print mode label if mode has changed.  Set in modeSwitch().
