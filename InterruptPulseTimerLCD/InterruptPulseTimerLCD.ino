@@ -644,7 +644,17 @@ void autoThresh(int sigMin = 0, int sigMax = 1023){
   lcd.print("Auto-calibrating");
   lcd.setCursor(0,1);
   lcd.print("Threshold levels");
-  delay(2500);
+  delay(1500);
+  lcd.clear(); 
+  lcd.setCursor(0,0);
+  lcd.print("New Thresh:");
+  delay(600);
+  lcd.setCursor(11,0);
+  lcd.print(String( analogRead(threshInPin) )); 
+  lcd.setCursor(0,1); 
+  lcd.print("Resetting data");
+  delay(700);
+  
   waveReset(); 
 
   modeSwitchFlag = true;                              //Trigger mode label reprint 
