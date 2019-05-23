@@ -1137,7 +1137,7 @@ void analogWaveMain(){      //Measure and display analog wave min and max analog
   unsigned long startTime;                        //Time Millis() of sample loop start
   byte loopCount = 0;                             //Current number of completed sample loops
   const byte sampleMillis = 50;                   //Length in millis for loop to run. 
-  const byte sampleLoops = 4;                     //Total number of sample loops to run. 
+  const byte sampleLoops = 6;                     //Total number of sample loops to run. 
 
     //Printing control variables
   String stCurrMin;                               //For printing current min value.
@@ -1160,7 +1160,7 @@ void analogWaveMain(){      //Measure and display analog wave min and max analog
     //Sample analog wave (sampleLoops) times for (sampleMillis) duration. Check for button press between loops.
     //Averages 445 times per 50ms. Testing performed with no input to cause interrupt ISR requests. Specs will be negatively impacted by interrupt delays.
     //Single sample loop specs: 50mS samples width @ 8.9kHz sample rate is ideal for sampling signals from 20Hz to 890Hz. (based on continuous wave input at 10 samples per period minimum)
-    //Overall sample specs: Suitable for signals from 5Hz to 2.2kHz. (Based on 4 loops and continuous wave input at 4 samples per period minimum)
+    //Overall sample specs: Suitable for signals from 3.4Hz to 2.2kHz. (Based on 6 loops and continuous wave input at 4 samples per period minimum)
   while( (currButton == 0) && (loopCount < sampleLoops) ){
 
     startTime = millis();                                   //Update start time of loop
